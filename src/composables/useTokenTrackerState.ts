@@ -12,7 +12,9 @@ import {
   initialUsageHistory
 } from '@/mocks/initial-data';
 import { loadPersistedState, persistState } from '@/services/persistence';
+import { DAY_NOTE_MAX_LENGTH } from '@/types/token-tracker';
 import type {
+  DayNotesMap,
   ISODateString,
   InputValidationErrors,
   PlanningMap,
@@ -102,6 +104,7 @@ export function useTokenTrackerState() {
     restored?.usageHistory ? { ...restored.usageHistory } : { ...initialUsageHistory }
   );
   const planning = reactive<PlanningMap>(restored?.planning ? { ...restored.planning } : { ...initialPlanning });
+  const dayNotes = reactive<DayNotesMap>(restored?.dayNotes ? { ...restored.dayNotes } : {});
 
   const initialMeasurementDate =
     restored?.activeMeasurementDate ??
@@ -114,14 +117,16 @@ export function useTokenTrackerState() {
 
   normalizePlanningEntries(referenceDate, planning);
 
-  const formState = reactive<{ measurementDate: string; consumedPercent: string }>({
+  const formState = reactive<{ measurementDate: string; consumedPercent: string; dayNote: string }>({
     measurementDate: snapshot.measurementDate,
-    consumedPercent: toDisplayPercent(snapshot.consumedPercent)
+    consumedPercent: toDisplayPercent(snapshot.consumedPercent),
+    dayNote: dayNotes[snapshot.measurementDate] ?? ''
   });
 
   const validationErrors = reactive<InputValidationErrors>({
     measurementDate: '',
-    consumedPercent: ''
+    consumedPercent: '',
+    dayNote: ''
   });
 
   const analysisSnapshot = computed<UsageSnapshot>(() => ({
@@ -146,6 +151,7 @@ export function useTokenTrackerState() {
       cycle: initialCycle,
       planning,
       usageHistory,
+      dayNotes,
       today: referenceDate
     })
   );
@@ -174,7 +180,7 @@ export function useTokenTrackerState() {
   );
 
   const isFormValid = computed(
-    () => !validationErrors.measurementDate && !validationErrors.consumedPercent
+    () => !validationErrors.measurementDate && !validationErrors.consumedPercent && !validationErrors.dayNote
   );
 
   function validateMeasurementDateInput(value: string): ISODateString | null {
@@ -240,6 +246,16 @@ export function useTokenTrackerState() {
     return parsed;
   }
 
+  function validateDayNoteInput(value: string): boolean {
+    if (value.length > DAY_NOTE_MAX_LENGTH) {
+      validationErrors.dayNote = `Keep note up to ${DAY_NOTE_MAX_LENGTH} characters.`;
+      return false;
+    }
+
+    validationErrors.dayNote = '';
+    return true;
+  }
+
   function updateMeasurementDateInput(value: string) {
     formState.measurementDate = value;
 
@@ -252,7 +268,9 @@ export function useTokenTrackerState() {
     snapshot.measurementDate = parsed;
     snapshot.consumedPercent = estimateConsumedPercentForDate(parsed, usageHistory, initialCycle);
     formState.consumedPercent = toDisplayPercent(snapshot.consumedPercent);
+    formState.dayNote = dayNotes[parsed] ?? '';
     validationErrors.consumedPercent = '';
+    validationErrors.dayNote = '';
     normalizePlanningEntries(referenceDate, planning);
   }
 
@@ -268,6 +286,23 @@ export function useTokenTrackerState() {
     snapshot.consumedPercent = parsed;
     usageHistory[snapshot.measurementDate] = parsed;
     formState.consumedPercent = toDisplayPercent(parsed);
+  }
+
+  function updateDayNoteInput(value: string) {
+    formState.dayNote = value;
+
+    if (!validateDayNoteInput(value)) {
+      return;
+    }
+
+    const normalized = value.trim();
+
+    if (normalized.length === 0) {
+      delete dayNotes[snapshot.measurementDate];
+      return;
+    }
+
+    dayNotes[snapshot.measurementDate] = normalized;
   }
 
   function toggleFutureDay(date: ISODateString) {
@@ -319,10 +354,11 @@ export function useTokenTrackerState() {
     () => ({
       measurementDate: snapshot.measurementDate,
       usageHistory: { ...usageHistory },
-      planning: { ...planning }
+      planning: { ...planning },
+      dayNotes: { ...dayNotes }
     }),
     () => {
-      persistState(snapshot.measurementDate, { ...usageHistory }, { ...planning });
+      persistState(snapshot.measurementDate, { ...usageHistory }, { ...planning }, { ...dayNotes });
     },
     { deep: true }
   );
@@ -332,7 +368,9 @@ export function useTokenTrackerState() {
     snapshot,
     usageHistory,
     planning,
+    dayNotes,
     formState,
+    dayNoteMaxLength: DAY_NOTE_MAX_LENGTH,
     validationErrors,
     isFormValid,
     monthLabel,
@@ -343,6 +381,7 @@ export function useTokenTrackerState() {
     planningStatusLabel,
     updateMeasurementDateInput,
     updateConsumedPercentInput,
+    updateDayNoteInput,
     toggleFutureDay,
     applyShortcut
   };

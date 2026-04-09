@@ -51,6 +51,11 @@
           @keydown="onCellKeydown($event, day)"
           :ref="(el) => setCellRef(day.date, el)"
         >
+          <span
+            v-if="day.hasNote && day.isCurrentMonth && day.isInCycle"
+            class="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-amber-200/90 ring-1 ring-amber-300/50"
+            aria-hidden="true"
+          />
           <span class="font-mono text-xs" :class="day.isCurrentMonth ? 'text-slate-100' : 'text-slate-600'">
             {{ day.dayNumber }}
           </span>
@@ -200,28 +205,30 @@ function onCellKeydown(event: KeyboardEvent, day: CalendarDayModel) {
 
 function getAriaLabel(day: CalendarDayModel): string {
   const dateLabel = toShortDateLabel(day.date);
+  const noteLabel = day.hasNote ? ', has note' : '';
+  const estimatedLabel = day.hasEstimatedUsage ? ', estimated usage' : '';
 
   if (!day.isCurrentMonth) {
-    return `${dateLabel}, outside current month`;
+    return `${dateLabel}, outside current month${noteLabel}${estimatedLabel}`;
   }
 
   if (day.isPast) {
-    return `${dateLabel}, past usage intensity ${day.pastIntensity} out of 4, click to edit`;
+    return `${dateLabel}, past usage intensity ${day.pastIntensity} out of 4, click to edit${noteLabel}${estimatedLabel}`;
   }
 
   if (day.isFuture) {
-    return `${dateLabel}, future plan ${day.planningState === 'on' ? 'on' : 'off'}`;
+    return `${dateLabel}, future plan ${day.planningState === 'on' ? 'on' : 'off'}${noteLabel}${estimatedLabel}`;
   }
 
   if (day.isMeasurementDay) {
-    return `${dateLabel}, measurement day`;
+    return `${dateLabel}, measurement day${noteLabel}${estimatedLabel}`;
   }
 
   if (day.isToday) {
-    return `${dateLabel}, today`;
+    return `${dateLabel}, today${noteLabel}${estimatedLabel}`;
   }
 
-  return dateLabel;
+  return `${dateLabel}${noteLabel}${estimatedLabel}`;
 }
 
 function getCellClasses(day: CalendarDayModel): string[] {
@@ -254,6 +261,10 @@ function getCellClasses(day: CalendarDayModel): string[] {
 
   if (day.isToday) {
     classes.push('ring-1 ring-cyan-300/70 shadow-glow');
+  }
+
+  if (day.hasEstimatedUsage) {
+    classes.push('estimated-usage-cell');
   }
 
   return classes;

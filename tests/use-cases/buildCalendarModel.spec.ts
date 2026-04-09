@@ -17,6 +17,9 @@ describe('buildCalendarModel', () => {
         '2026-04-04': 'on',
         '2026-04-10': 'on'
       },
+      dayNotes: {
+        '2026-04-04': 'Launch day'
+      },
       usageHistory: {
         '2026-04-03': 20,
         '2026-04-09': 38
@@ -36,16 +39,22 @@ describe('buildCalendarModel', () => {
 
     expect(day3?.isMeasurementDay).toBe(true);
     expect(day3?.isFuture).toBe(false);
+    expect(day3?.hasEstimatedUsage).toBe(false);
 
     expect(day4?.isPast).toBe(true);
     expect(day4?.isFuture).toBe(false);
     expect(day4?.planningState).toBe('off');
+    expect(day4?.hasNote).toBe(true);
+    expect(day4?.hasEstimatedUsage).toBe(true);
 
     expect(day9?.isToday).toBe(true);
     expect(day9?.isFuture).toBe(false);
     expect(day9?.isMeasurementDay).toBe(false);
+    expect(day9?.hasEstimatedUsage).toBe(false);
 
     expect(day10?.isFuture).toBe(true);
     expect(day10?.planningState).toBe('on');
+    expect(day10?.hasNote).toBe(false);
+    expect(day10?.hasEstimatedUsage).toBe(false);
   });
 });

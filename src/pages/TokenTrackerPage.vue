@@ -1,40 +1,46 @@
 <template>
-  <main class="min-h-screen px-4 py-8 sm:px-6 lg:px-10 lg:py-10">
-    <div class="mx-auto flex w-full max-w-7xl flex-col gap-6">
-      <PageHeader />
+  <main class="min-h-screen">
+    <div class="px-4 py-8 sm:px-6 lg:px-10 lg:py-10">
+      <div class="mx-auto flex w-full max-w-7xl flex-col gap-6">
+        <PageHeader />
 
-      <UsageInputCard
-        ref="usageInputCardRef"
-        :cycle="cycle"
-        :measurement-date-input="formState.measurementDate"
-        :consumed-percent-input="formState.consumedPercent"
-        :errors="validationErrors"
-        @update:measurement-date="updateMeasurementDateInput"
-        @update:consumed-percent="updateConsumedPercentInput"
-      />
+        <UsageInputCard
+          ref="usageInputCardRef"
+          :cycle="cycle"
+          :measurement-date-input="formState.measurementDate"
+          :consumed-percent-input="formState.consumedPercent"
+          :day-note-input="formState.dayNote"
+          :day-note-max-length="dayNoteMaxLength"
+          :errors="validationErrors"
+          @update:measurement-date="updateMeasurementDateInput"
+          @update:consumed-percent="updateConsumedPercentInput"
+          @update:day-note="updateDayNoteInput"
+        />
 
-      <section class="grid items-start gap-6 xl:grid-cols-[1.6fr_1fr]">
-        <div class="space-y-4">
-          <PlanningShortcuts :planning-status-label="planningStatusLabel" @apply="applyShortcut" />
-          <CalendarHeatmap
-            :days="calendarDays"
-            :view-mode="temporalViewMode"
-            :chart-model="usageChartModel"
-            :month-label="monthLabel"
-            @toggle-day="toggleFutureDay"
-            @select-day="handleSelectDay"
-            @change-view="temporalViewMode = $event"
-          />
-          <CalendarLegend :mode="temporalViewMode" />
-          <InsightCard :message="diagnostics.insightMessage" :status="diagnostics.safetyStatus" />
-        </div>
+        <section class="grid items-start gap-6 xl:grid-cols-[1.6fr_1fr]">
+          <div class="space-y-4">
+            <PlanningShortcuts :planning-status-label="planningStatusLabel" @apply="applyShortcut" />
+            <CalendarHeatmap
+              :days="calendarDays"
+              :view-mode="temporalViewMode"
+              :chart-model="usageChartModel"
+              :month-label="monthLabel"
+              @toggle-day="toggleFutureDay"
+              @select-day="handleSelectDay"
+              @change-view="temporalViewMode = $event"
+            />
+            <CalendarLegend :mode="temporalViewMode" />
+          </div>
 
-        <div class="space-y-4">
-          <DiagnosticsGrid :summary="diagnostics" />
-        </div>
-      </section>
-      <ProjectFooter />
+          <div class="space-y-4">
+            <InsightCard :message="diagnostics.insightMessage" :status="diagnostics.safetyStatus" />
+            <DiagnosticsGrid :summary="diagnostics" />
+          </div>
+        </section>
+      </div>
     </div>
+
+    <ProjectFooter />
   </main>
 </template>
 
@@ -54,6 +60,7 @@ import type { ISODateString, TemporalViewMode } from '@/types/token-tracker';
 const {
   cycle,
   formState,
+  dayNoteMaxLength,
   validationErrors,
   monthLabel,
   diagnostics,
@@ -62,6 +69,7 @@ const {
   planningStatusLabel,
   updateMeasurementDateInput,
   updateConsumedPercentInput,
+  updateDayNoteInput,
   toggleFutureDay,
   applyShortcut
 } = useTokenTrackerState();

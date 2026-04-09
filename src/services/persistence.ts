@@ -1,6 +1,8 @@
 import { sanitizeUsageHistory } from '@/domain/usage-history';
+import { DAY_NOTE_MAX_LENGTH } from '@/types/token-tracker';
 import type {
   CycleInfo,
+  DayNotesMap,
   ISODateString,
   PlanningMap,
   UsageHistoryMap,
@@ -14,6 +16,7 @@ type PersistedStateV2 = {
   activeMeasurementDate: ISODateString;
   usageHistory: UsageHistoryMap;
   planning: PlanningMap;
+  dayNotes?: DayNotesMap;
 };
 
 type PersistedStateV1 = {
@@ -57,6 +60,30 @@ function sanitizePlanning(planning: PlanningMap, cycle: CycleInfo): PlanningMap 
   return sanitized;
 }
 
+function sanitizeDayNotes(dayNotes: DayNotesMap, cycle: CycleInfo): DayNotesMap {
+  const sanitized: DayNotesMap = {};
+
+  for (const [date, rawNote] of Object.entries(dayNotes)) {
+    if (!isValidIsoDate(date) || typeof rawNote !== 'string') {
+      continue;
+    }
+
+    if (!isBetweenInclusive(date, cycle.cycleStart, cycle.resetDate)) {
+      continue;
+    }
+
+    const normalized = rawNote.trim().slice(0, DAY_NOTE_MAX_LENGTH);
+
+    if (normalized.length === 0) {
+      continue;
+    }
+
+    sanitized[date] = normalized;
+  }
+
+  return sanitized;
+}
+
 function sanitizeActiveMeasurementDate(date: ISODateString, cycle: CycleInfo): ISODateString | null {
   if (!isBetweenInclusive(date, cycle.cycleStart, cycle.resetDate)) {
     return null;
@@ -85,7 +112,8 @@ function migrateV1State(raw: unknown): PersistedStateV2 | null {
     usageHistory: {
       [candidate.snapshot.measurementDate]: candidate.snapshot.consumedPercent
     },
-    planning: candidate.planning ?? {}
+    planning: candidate.planning ?? {},
+    dayNotes: {}
   };
 }
 
@@ -132,7 +160,8 @@ export function loadPersistedState(cycle: CycleInfo): PersistedStateV2 | null {
     return {
       activeMeasurementDate,
       usageHistory: sanitizeUsageHistory(normalized.usageHistory ?? {}, cycle),
-      planning: sanitizePlanning(normalized.planning ?? {}, cycle)
+      planning: sanitizePlanning(normalized.planning ?? {}, cycle),
+      dayNotes: sanitizeDayNotes(normalized.dayNotes ?? {}, cycle)
     };
   } catch {
     return null;
@@ -142,7 +171,8 @@ export function loadPersistedState(cycle: CycleInfo): PersistedStateV2 | null {
 export function persistState(
   activeMeasurementDate: ISODateString,
   usageHistory: UsageHistoryMap,
-  planning: PlanningMap
+  planning: PlanningMap,
+  dayNotes: DayNotesMap
 ): void {
   const storage = getStorage();
 
@@ -153,7 +183,8 @@ export function persistState(
   const payload: PersistedStateV2 = {
     activeMeasurementDate,
     usageHistory,
-    planning
+    planning,
+    dayNotes
   };
 
   storage.setItem(STORAGE_KEY, JSON.stringify(payload));

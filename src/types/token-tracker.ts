@@ -1,5 +1,6 @@
 export type ISODateString = `${number}-${number}-${number}`;
 export type TemporalViewMode = 'heatmap' | 'chart';
+export const DAY_NOTE_MAX_LENGTH = 80;
 
 export type PlanningDayState = 'on' | 'off';
 
@@ -59,6 +60,8 @@ export interface CalendarDayModel {
   isFuture: boolean;
   isToday: boolean;
   isMeasurementDay: boolean;
+  hasNote: boolean;
+  hasEstimatedUsage: boolean;
   pastIntensity: 0 | 1 | 2 | 3 | 4;
   planningState: PlanningDayState;
 }
@@ -82,6 +85,7 @@ export interface UsageChartModel {
 
 export type PlanningMap = Partial<Record<ISODateString, PlanningDayState>>;
 export type UsageHistoryMap = Partial<Record<ISODateString, number>>;
+export type DayNotesMap = Partial<Record<ISODateString, string>>;
 
 export type PlanningShortcut = 'workdays' | 'weekendOff' | 'clear';
 
@@ -97,4 +101,5 @@ export interface WhatIfScenario {
 export interface InputValidationErrors {
   measurementDate: string;
   consumedPercent: string;
+  dayNote: string;
 }

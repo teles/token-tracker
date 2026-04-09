@@ -116,6 +116,24 @@ describe('useTokenTrackerState', () => {
     expect(parsed.usageHistory[state.cycle.cycleStart]).toBe(22.5);
   });
 
+  it('stores and persists day notes for the selected date', async () => {
+    const state = useTokenTrackerState();
+
+    state.updateMeasurementDateInput(state.cycle.cycleStart);
+    state.updateDayNoteInput('Deploy com teste de carga');
+
+    expect(state.dayNotes[state.cycle.cycleStart]).toBe('Deploy com teste de carga');
+
+    await nextTick();
+
+    const raw = globalThis.localStorage.getItem(TOKEN_TRACKER_STORAGE_KEY);
+    const parsed = JSON.parse(raw ?? '{}');
+    expect(parsed.dayNotes[state.cycle.cycleStart]).toBe('Deploy com teste de carga');
+
+    state.updateDayNoteInput('   ');
+    expect(state.dayNotes[state.cycle.cycleStart]).toBeUndefined();
+  });
+
   it('restores persisted state on composable creation', () => {
     const today = todayIsoDate();
     const cycleStart = startOfMonth(today);
@@ -129,6 +147,9 @@ describe('useTokenTrackerState', () => {
         },
         planning: {
           [addDays(cycleStart, 3)]: 'on'
+        },
+        dayNotes: {
+          [cycleStart]: 'Primeiro dia do ciclo'
         }
       })
     );
@@ -137,5 +158,6 @@ describe('useTokenTrackerState', () => {
 
     expect(state.snapshot.measurementDate).toBe(cycleStart);
     expect(state.snapshot.consumedPercent).toBe(19);
+    expect(state.formState.dayNote).toBe('Primeiro dia do ciclo');
   });
 });

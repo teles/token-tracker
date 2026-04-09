@@ -2,6 +2,7 @@ import { generatePastHeatmapIntensities } from '@/domain/heatmap';
 import type {
   CalendarDayModel,
   CycleInfo,
+  DayNotesMap,
   ISODateString,
   PlanningMap,
   UsageHistoryMap,
@@ -27,6 +28,7 @@ interface BuildCalendarModelInput {
   cycle: CycleInfo;
   planning: PlanningMap;
   usageHistory: UsageHistoryMap;
+  dayNotes?: DayNotesMap;
   today?: ISODateString;
 }
 
@@ -40,6 +42,7 @@ function isCurrentMonth(
 
 export function buildCalendarModel(input: BuildCalendarModelInput): CalendarDayModel[] {
   const { snapshot, measurementDate, cycle, planning, usageHistory } = input;
+  const dayNotes = input.dayNotes ?? {};
   const today = input.today ?? todayIsoDate();
 
   const monthStart = startOfMonth(snapshot.measurementDate);
@@ -56,6 +59,8 @@ export function buildCalendarModel(input: BuildCalendarModelInput): CalendarDayM
 
     const isPast = inCycle && isBefore(date, snapshot.measurementDate);
     const isFuture = inCycle && isBefore(snapshot.measurementDate, date);
+    const hasManualMeasurement = Number.isFinite(usageHistory[date]);
+    const hasEstimatedUsage = inCycle && !isFuture && !hasManualMeasurement;
 
     return {
       date,
@@ -67,6 +72,8 @@ export function buildCalendarModel(input: BuildCalendarModelInput): CalendarDayM
       isFuture,
       isToday: isSameDate(date, today),
       isMeasurementDay: isSameDate(date, measurementDate),
+      hasNote: Boolean(dayNotes[date]),
+      hasEstimatedUsage,
       pastIntensity: isPast ? pastIntensities[date] ?? 0 : 0,
       planningState: isFuture ? planning[date] ?? 'off' : 'off'
     };
