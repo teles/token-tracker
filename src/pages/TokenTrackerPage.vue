@@ -31,7 +31,6 @@
 
         <div class="space-y-4">
           <DiagnosticsGrid :summary="diagnostics" />
-          <WhatIfScenariosCard :scenarios="whatIfScenarios" />
         </div>
       </section>
       <ProjectFooter />
@@ -49,7 +48,6 @@ import PageHeader from '@/components/PageHeader.vue';
 import PlanningShortcuts from '@/components/PlanningShortcuts.vue';
 import ProjectFooter from '@/components/ProjectFooter.vue';
 import UsageInputCard from '@/components/UsageInputCard.vue';
-import WhatIfScenariosCard from '@/components/WhatIfScenariosCard.vue';
 import { useTokenTrackerState } from '@/composables/useTokenTrackerState';
 import type { ISODateString, TemporalViewMode } from '@/types/token-tracker';
 
@@ -61,7 +59,6 @@ const {
   diagnostics,
   calendarDays,
   usageChartModel,
-  whatIfScenarios,
   planningStatusLabel,
   updateMeasurementDateInput,
   updateConsumedPercentInput,
