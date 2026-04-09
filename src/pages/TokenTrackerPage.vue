@@ -2,7 +2,15 @@
   <main class="min-h-screen">
     <div class="px-4 py-8 sm:px-6 lg:px-10 lg:py-10">
       <div class="mx-auto flex w-full max-w-7xl flex-col gap-6">
-        <PageHeader :language-label="languageLabel" @open-settings="isSettingsOpen = true" />
+        <PageHeader
+          :language-label="languageLabel"
+          current-page="tracker"
+          workspace-key="header.workspace"
+          title-key="header.title"
+          subtitle-key="header.subtitle"
+          @open-settings="isSettingsOpen = true"
+          @navigate="emit('navigate', $event)"
+        />
 
         <UsageInputCard
           ref="usageInputCardRef"
@@ -66,6 +74,10 @@ import { useTokenTrackerState } from '@/composables/useTokenTrackerState';
 import { useUiLanguage } from '@/composables/useUiLanguage';
 import { appLanguageDescriptorByValue } from '@/types/app-settings';
 import type { ISODateString, TemporalViewMode } from '@/types/token-tracker';
+
+const emit = defineEmits<{
+  (event: 'navigate', page: 'tracker' | 'history'): void;
+}>();
 
 const {
   cycle,
