@@ -34,12 +34,12 @@ Frontend single-page app built with Vue 3 + TypeScript + Tailwind CSS.
 ## Run locally
 
 ```bash
-npm install
-npm run dev
+pnpm install
+pnpm dev
 ```
 
 ## Run tests
 
 ```bash
-npm run test
+pnpm test
 ```
