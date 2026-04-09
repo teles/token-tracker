@@ -58,7 +58,11 @@
             {{ dayNotePreview || 'Add short context for this day (deploy, incident, travel, etc.).' }}
           </p>
         </div>
-        <span class="text-xs text-cyan-200">{{ isDayNoteOpen ? 'Hide' : 'Edit' }}</span>
+        <span
+          class="inline-flex items-center rounded-lg border border-slate-600/70 bg-slate-900/80 px-2.5 py-1 text-xs font-medium text-cyan-100"
+        >
+          {{ dayNoteActionLabel }}
+        </span>
       </button>
 
       <div v-if="isDayNoteOpen" class="mt-3 space-y-2">
@@ -111,6 +115,13 @@ const measurementDateInputRef = ref<HTMLInputElement | null>(null);
 const consumedPercentInputRef = ref<HTMLInputElement | null>(null);
 const isDayNoteOpen = ref(false);
 const dayNotePreview = computed(() => props.dayNoteInput.trim());
+const dayNoteActionLabel = computed(() => {
+  if (isDayNoteOpen.value) {
+    return 'Close note field';
+  }
+
+  return dayNotePreview.value ? 'Open note field' : 'Add note';
+});
 
 watch(
   () => props.errors.dayNote,

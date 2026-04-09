@@ -1,7 +1,7 @@
 import { nextTick } from 'vue';
 import { useTokenTrackerState } from '@/composables/useTokenTrackerState';
 import { TOKEN_TRACKER_STORAGE_KEY } from '@/services/persistence';
-import { addDays, diffDays, startOfMonth, todayIsoDate } from '@/utils/date';
+import { addDays, diffDays, isWeekend, startOfMonth, todayIsoDate } from '@/utils/date';
 
 class MemoryStorage implements Storage {
   private map = new Map<string, string>();
@@ -98,6 +98,31 @@ describe('useTokenTrackerState', () => {
     state.toggleFutureDay(actualFutureDate);
     const afterSecondToggle = state.planning[actualFutureDate] ?? 'off';
     expect(afterSecondToggle).toBe(initialFutureState);
+  });
+
+  it('keeps selected weekends when applying workdays shortcut', () => {
+    const state = useTokenTrackerState();
+    const actualToday = todayIsoDate();
+
+    state.applyShortcut('clear');
+
+    let weekendDate = addDays(actualToday, 1);
+    while (!isWeekend(weekendDate)) {
+      weekendDate = addDays(weekendDate, 1);
+    }
+
+    let weekdayDate = addDays(actualToday, 1);
+    while (isWeekend(weekdayDate)) {
+      weekdayDate = addDays(weekdayDate, 1);
+    }
+
+    state.toggleFutureDay(weekendDate);
+    expect(state.planning[weekendDate]).toBe('on');
+
+    state.applyShortcut('workdays');
+
+    expect(state.planning[weekdayDate]).toBe('on');
+    expect(state.planning[weekendDate]).toBe('on');
   });
 
   it('persists active date, usage history and planning to localStorage', async () => {

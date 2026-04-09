@@ -60,7 +60,7 @@ export function buildCalendarModel(input: BuildCalendarModelInput): CalendarDayM
     const isPast = inCycle && isBefore(date, snapshot.measurementDate);
     const isFuture = inCycle && isBefore(snapshot.measurementDate, date);
     const hasManualMeasurement = Number.isFinite(usageHistory[date]);
-    const hasEstimatedUsage = inCycle && !isFuture && !hasManualMeasurement;
+    const hasEstimatedUsage = isPast && !hasManualMeasurement;
 
     return {
       date,

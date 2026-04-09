@@ -49,8 +49,9 @@
           </div>
 
           <div class="rounded-lg border border-slate-700/60 bg-slate-950/35 p-3.5">
-            <p class="text-[11px] uppercase tracking-[0.14em] text-slate-400">Planned-day budget</p>
+            <p class="text-[11px] uppercase tracking-[0.14em] text-slate-400">Budget on ON days</p>
             <p class="mt-1 text-xl font-semibold text-slate-100">{{ plannedDayBudgetValue }}</p>
+            <p class="mt-1 text-xs text-slate-500">{{ plannedDayBudgetHint }}</p>
           </div>
         </div>
 
@@ -108,9 +109,17 @@ const projectionHint = computed(
 
 const plannedDayBudgetValue = computed(() =>
   props.summary.safeDailyBudgetPlannedDays > 0
-    ? `${formatPercent(props.summary.safeDailyBudgetPlannedDays)} / planned day`
+    ? `${formatPercent(props.summary.safeDailyBudgetPlannedDays)} / ON day`
     : 'N/A'
 );
+
+const plannedDayBudgetHint = computed(() => {
+  if (props.summary.plannedUsageDays <= 0) {
+    return 'No ON days planned in the remaining cycle.';
+  }
+
+  return `${formatPercent(props.summary.remainingPercent)} remaining spread across ${props.summary.plannedUsageDays} ON days.`;
+});
 
 const projectionToneByStatus: Record<SafetyStatus, 'neutral' | 'risk'> = {
   safe: 'neutral',

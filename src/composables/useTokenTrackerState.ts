@@ -334,10 +334,10 @@ export function useTokenTrackerState() {
     if (shortcut === 'workdays') {
       for (const date of futureDates) {
         if (isWeekend(date)) {
-          delete planning[date];
-        } else {
-          planning[date] = 'on';
+          continue;
         }
+
+        planning[date] = 'on';
       }
 
       return;
