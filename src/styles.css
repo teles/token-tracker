@@ -1,0 +1,53 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Sora:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply m-0 min-h-screen bg-slate-950 font-display text-slate-100 antialiased;
+    background-image:
+      radial-gradient(circle at 12% 5%, rgba(34, 211, 238, 0.16), transparent 35%),
+      radial-gradient(circle at 88% 12%, rgba(99, 102, 241, 0.14), transparent 32%),
+      linear-gradient(155deg, #020617 0%, #031028 55%, #020617 100%);
+  }
+
+  * {
+    @apply border-slate-700/40;
+  }
+}
+
+@layer components {
+  .panel-surface {
+    @apply rounded-2xl border bg-panel-900/70 shadow-panel backdrop-blur;
+  }
+
+  .panel-title {
+    @apply font-mono text-[11px] uppercase tracking-[0.2em] text-slate-400;
+  }
+
+  .grid-cell {
+    @apply relative flex h-16 w-full items-start justify-end rounded-xl border px-2 py-1.5 text-sm transition;
+  }
+
+  .toggle-pop {
+    animation: toggle-pop 220ms ease-out;
+  }
+}
+
+@keyframes toggle-pop {
+  0% {
+    transform: scale(0.94);
+  }
+  65% {
+    transform: scale(1.04);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
