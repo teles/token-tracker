@@ -1,4 +1,5 @@
 export type ISODateString = `${number}-${number}-${number}`;
+export type TemporalViewMode = 'heatmap' | 'chart';
 
 export type PlanningDayState = 'on' | 'off';
 
@@ -60,6 +61,23 @@ export interface CalendarDayModel {
   isMeasurementDay: boolean;
   pastIntensity: 0 | 1 | 2 | 3 | 4;
   planningState: PlanningDayState;
+}
+
+export type UsageChartPointPhase = 'historical' | 'projected';
+
+export interface UsageChartPointModel {
+  date: ISODateString;
+  dayNumber: number;
+  cumulativePercent: number;
+  phase: UsageChartPointPhase;
+  isToday: boolean;
+  isMeasurementDay: boolean;
+  hasManualMeasurement: boolean;
+  planningState: PlanningDayState;
+}
+
+export interface UsageChartModel {
+  points: UsageChartPointModel[];
 }
 
 export type PlanningMap = Partial<Record<ISODateString, PlanningDayState>>;

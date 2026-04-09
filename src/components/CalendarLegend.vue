@@ -1,6 +1,6 @@
 <template>
   <section class="panel-surface p-4">
-    <div class="grid gap-4 md:grid-cols-2">
+    <div v-if="mode === 'heatmap'" class="grid gap-4 md:grid-cols-2">
       <div class="space-y-2">
         <p class="panel-title">Past Usage Intensity</p>
         <div class="flex items-center gap-2">
@@ -29,10 +29,49 @@
         </div>
       </div>
     </div>
+
+    <div v-else class="grid gap-4 md:grid-cols-2">
+      <div class="space-y-2">
+        <p class="panel-title">Usage Curves</p>
+        <div class="flex flex-wrap items-center gap-3 text-xs text-slate-300">
+          <span class="inline-flex items-center gap-2">
+            <span class="h-2 w-5 rounded-full bg-cyan-300/90"></span>
+            Historical cumulative
+          </span>
+          <span class="inline-flex items-center gap-2">
+            <span class="h-2 w-5 rounded-full border border-violet-300/70 bg-violet-300/35"></span>
+            Projected at current pace
+          </span>
+        </div>
+      </div>
+
+      <div class="space-y-2">
+        <p class="panel-title">Point Meaning</p>
+        <div class="flex flex-wrap gap-2 text-xs">
+          <span class="rounded-lg border border-cyan-200/70 bg-cyan-300/15 px-2 py-1 text-cyan-100">
+            Manual Measurement
+          </span>
+          <span class="rounded-lg border border-violet-300/70 bg-violet-700/35 px-2 py-1 text-violet-100">
+            Future ON Day
+          </span>
+          <span class="rounded-lg border border-slate-600/70 bg-slate-800/70 px-2 py-1 text-slate-300">
+            Future OFF Day
+          </span>
+        </div>
+      </div>
+    </div>
   </section>
 </template>
 
 <script setup lang="ts">
+import type { TemporalViewMode } from '@/types/token-tracker';
+
+interface Props {
+  mode: TemporalViewMode;
+}
+
+defineProps<Props>();
+
 const intensityTones = [
   'bg-slate-900/70 border-slate-800/70',
   'bg-emerald-950/50 border-emerald-900/60',

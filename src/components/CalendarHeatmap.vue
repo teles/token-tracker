@@ -1,52 +1,87 @@
 <template>
   <section class="panel-surface p-5 sm:p-6">
-    <div class="mb-4 flex items-end justify-between">
+    <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div>
-        <p class="panel-title">Temporal Usage Heatmap</p>
+        <p class="panel-title">Temporal Usage</p>
         <h2 class="mt-2 text-lg font-semibold text-slate-100">{{ monthLabel }}</h2>
       </div>
-      <p class="text-xs text-slate-400">
-        Future: toggle ON/OFF. Past or today: open Manual Usage Input.
-      </p>
+
+      <div class="space-y-2 sm:text-right">
+        <div class="inline-flex rounded-xl border border-slate-700/80 bg-slate-900/80 p-1">
+          <button
+            v-for="mode in viewModes"
+            :key="mode.value"
+            type="button"
+            class="rounded-lg px-3 py-1.5 text-xs font-medium transition"
+            :class="mode.value === viewMode
+              ? 'bg-cyan-500/20 text-cyan-100 shadow-[0_0_0_1px_rgba(103,232,249,0.25)]'
+              : 'text-slate-400 hover:text-slate-200'"
+            :aria-pressed="mode.value === viewMode"
+            @click="emit('change-view', mode.value)"
+          >
+            {{ mode.label }}
+          </button>
+        </div>
+
+        <p class="text-xs text-slate-400">
+          {{ interactionHint }}
+        </p>
+      </div>
     </div>
 
-    <div class="grid grid-cols-7 gap-2 text-[11px] uppercase tracking-[0.16em] text-slate-500">
-      <span v-for="weekday in weekdays" :key="weekday" class="px-1 py-1 text-center">
-        {{ weekday }}
-      </span>
-    </div>
-
-    <div class="mt-2 grid grid-cols-7 gap-2">
-      <button
-        v-for="day in days"
-        :key="day.date"
-        type="button"
-        class="grid-cell"
-        :class="getCellClasses(day)"
-        :disabled="!day.isCurrentMonth || !day.isInCycle"
-        :aria-label="getAriaLabel(day)"
-        :title="getAriaLabel(day)"
-        :aria-pressed="day.isFuture ? day.planningState === 'on' : undefined"
-        @click="handlePrimaryAction(day)"
-        @keydown="onCellKeydown($event, day)"
-        :ref="(el) => setCellRef(day.date, el)"
-      >
-        <span class="font-mono text-xs" :class="day.isCurrentMonth ? 'text-slate-100' : 'text-slate-600'">
-          {{ day.dayNumber }}
+    <template v-if="viewMode === 'heatmap'">
+      <div class="grid grid-cols-7 gap-2 text-[11px] uppercase tracking-[0.16em] text-slate-500">
+        <span v-for="weekday in weekdays" :key="weekday" class="px-1 py-1 text-center">
+          {{ weekday }}
         </span>
-        <span v-if="day.isMeasurementDay" class="absolute bottom-1 left-2 text-[10px] text-cyan-200">Measured</span>
-      </button>
-    </div>
+      </div>
+
+      <div class="mt-2 grid grid-cols-7 gap-2">
+        <button
+          v-for="day in days"
+          :key="day.date"
+          type="button"
+          class="grid-cell"
+          :class="getCellClasses(day)"
+          :disabled="!day.isCurrentMonth || !day.isInCycle"
+          :aria-label="getAriaLabel(day)"
+          :title="getAriaLabel(day)"
+          :aria-pressed="day.isFuture ? day.planningState === 'on' : undefined"
+          @click="handlePrimaryAction(day)"
+          @keydown="onCellKeydown($event, day)"
+          :ref="(el) => setCellRef(day.date, el)"
+        >
+          <span class="font-mono text-xs" :class="day.isCurrentMonth ? 'text-slate-100' : 'text-slate-600'">
+            {{ day.dayNumber }}
+          </span>
+          <span v-if="day.isMeasurementDay" class="absolute bottom-1 left-2 text-[10px] text-cyan-200">Measured</span>
+        </button>
+      </div>
+    </template>
+
+    <UsageTrendChart
+      v-else
+      :model="chartModel"
+      @select-day="emit('select-day', $event)"
+    />
   </section>
 </template>
 
 <script setup lang="ts">
-import { ref, type ComponentPublicInstance } from 'vue';
-import type { CalendarDayModel, ISODateString } from '@/types/token-tracker';
+import { computed, ref, type ComponentPublicInstance } from 'vue';
+import UsageTrendChart from '@/components/UsageTrendChart.vue';
+import type {
+  CalendarDayModel,
+  ISODateString,
+  TemporalViewMode,
+  UsageChartModel
+} from '@/types/token-tracker';
 import { toShortDateLabel } from '@/utils/date';
 
 interface Props {
   days: CalendarDayModel[];
+  viewMode: TemporalViewMode;
+  chartModel: UsageChartModel;
   monthLabel: string;
 }
 
@@ -55,9 +90,20 @@ const props = defineProps<Props>();
 const emit = defineEmits<{
   (event: 'toggle-day', value: ISODateString): void;
   (event: 'select-day', value: ISODateString): void;
+  (event: 'change-view', value: TemporalViewMode): void;
 }>();
 
 const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const viewModes: Array<{ value: TemporalViewMode; label: string }> = [
+  { value: 'heatmap', label: 'Heatmap' },
+  { value: 'chart', label: 'Usage Chart' }
+];
+
+const interactionHint = computed(() =>
+  props.viewMode === 'heatmap'
+    ? 'Future: toggle ON/OFF. Past or today: open Manual Usage Input.'
+    : 'Past points open Manual Usage Input. Future planning stays in Heatmap mode.'
+);
 
 const pastIntensityClassMap = {
   0: 'bg-slate-900/70 border-slate-800/60',

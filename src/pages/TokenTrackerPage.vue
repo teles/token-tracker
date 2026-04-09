@@ -18,11 +18,14 @@
           <PlanningShortcuts :planning-status-label="planningStatusLabel" @apply="applyShortcut" />
           <CalendarHeatmap
             :days="calendarDays"
+            :view-mode="temporalViewMode"
+            :chart-model="usageChartModel"
             :month-label="monthLabel"
             @toggle-day="toggleFutureDay"
             @select-day="handleSelectDay"
+            @change-view="temporalViewMode = $event"
           />
-          <CalendarLegend />
+          <CalendarLegend :mode="temporalViewMode" />
           <InsightCard :message="diagnostics.insightMessage" :status="diagnostics.safetyStatus" />
         </div>
 
@@ -48,7 +51,7 @@ import ProjectFooter from '@/components/ProjectFooter.vue';
 import UsageInputCard from '@/components/UsageInputCard.vue';
 import WhatIfScenariosCard from '@/components/WhatIfScenariosCard.vue';
 import { useTokenTrackerState } from '@/composables/useTokenTrackerState';
-import type { ISODateString } from '@/types/token-tracker';
+import type { ISODateString, TemporalViewMode } from '@/types/token-tracker';
 
 const {
   cycle,
@@ -57,6 +60,7 @@ const {
   monthLabel,
   diagnostics,
   calendarDays,
+  usageChartModel,
   whatIfScenarios,
   planningStatusLabel,
   updateMeasurementDateInput,
@@ -70,6 +74,7 @@ type UsageInputCardExposed = {
 };
 
 const usageInputCardRef = ref<UsageInputCardExposed | null>(null);
+const temporalViewMode = ref<TemporalViewMode>('heatmap');
 
 async function handleSelectDay(date: ISODateString) {
   updateMeasurementDateInput(date);

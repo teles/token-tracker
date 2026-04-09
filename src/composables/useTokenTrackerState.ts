@@ -17,11 +17,13 @@ import type {
   InputValidationErrors,
   PlanningMap,
   PlanningShortcut,
+  UsageChartModel,
   UsageHistoryMap,
   UsageSnapshot
 } from '@/types/token-tracker';
 import { buildCalendarModel } from '@/use-cases/buildCalendarModel';
 import { buildDiagnosticSummary } from '@/use-cases/buildDiagnosticSummary';
+import { buildUsageChartModel } from '@/use-cases/buildUsageChartModel';
 import {
   addDays,
   eachDayInclusive,
@@ -145,6 +147,16 @@ export function useTokenTrackerState() {
       planning,
       usageHistory,
       today: referenceDate
+    })
+  );
+
+  const usageChartModel = computed<UsageChartModel>(() =>
+    buildUsageChartModel({
+      cycle: initialCycle,
+      referenceDate,
+      measurementDate: snapshot.measurementDate,
+      usageHistory,
+      planning
     })
   );
 
@@ -326,6 +338,7 @@ export function useTokenTrackerState() {
     monthLabel,
     diagnostics,
     calendarDays,
+    usageChartModel,
     whatIfScenarios,
     planningStatusLabel,
     updateMeasurementDateInput,

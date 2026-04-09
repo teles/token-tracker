@@ -6,7 +6,8 @@ Frontend single-page app built with Vue 3 + TypeScript + Tailwind CSS.
 
 - One main screen focused on tracking a single quota/account
 - Manual input for measurement date and consumed percentage
-- Monthly calendar with past heatmap + future planning states
+- Monthly calendar with `Heatmap | Usage Chart` view toggle
+- Past heatmap + future planning states for day-level control
 - Diagnostic and projection cards
 - What-if scenario cards for quick planning impact
 - Local persistence (snapshot + planning) via localStorage
