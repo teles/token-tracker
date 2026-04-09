@@ -13,6 +13,8 @@ import {
   type ProjectionStrategy
 } from '@/domain/projection';
 import { classifySafetyStatus } from '@/domain/safety';
+import { translate } from '@/i18n/translate';
+import type { AppLanguage } from '@/types/app-settings';
 import type {
   CycleInfo,
   DiagnosticSummary,
@@ -25,6 +27,7 @@ interface BuildDiagnosticSummaryInput {
   snapshot: UsageSnapshot;
   cycle: CycleInfo;
   planning: PlanningMap;
+  language?: AppLanguage;
   projectionStrategy?: ProjectionStrategy;
 }
 
@@ -33,30 +36,35 @@ function getFutureDates(snapshot: UsageSnapshot, cycle: CycleInfo) {
   return eachDayInclusive(start, cycle.resetDate);
 }
 
-function getRhythmLabel(currentPace: number, safeDailyBudget: number): string {
+function getRhythmLabel(
+  currentPace: number,
+  safeDailyBudget: number,
+  language: AppLanguage
+): string {
   if (safeDailyBudget <= 0) {
-    return 'No runway';
+    return translate(language, 'rhythm.noRunway');
   }
 
   const ratio = currentPace / safeDailyBudget;
 
   if (ratio < 0.6) {
-    return 'Controlled';
+    return translate(language, 'rhythm.controlled');
   }
 
   if (ratio < 0.85) {
-    return 'Stable';
+    return translate(language, 'rhythm.stable');
   }
 
   if (ratio < 1) {
-    return 'Near limit';
+    return translate(language, 'rhythm.nearLimit');
   }
 
-  return 'Over budget';
+  return translate(language, 'rhythm.overBudget');
 }
 
 export function buildDiagnosticSummary(input: BuildDiagnosticSummaryInput): DiagnosticSummary {
   const { snapshot, cycle, planning } = input;
+  const language = input.language ?? 'en-US';
   const projectionStrategy = input.projectionStrategy ?? projectionStrategies['seasonal-week-pattern'];
 
   const consumedPercent = normalizeConsumedPercent(snapshot.consumedPercent, cycle.quotaPercent);
@@ -106,12 +114,12 @@ export function buildDiagnosticSummary(input: BuildDiagnosticSummaryInput): Diag
     safetyStatus,
     measurementDate: snapshot.measurementDate,
     resetDate: cycle.resetDate,
-    rhythmLabel: getRhythmLabel(currentPacePerDay, safeDailyBudgetAllDays),
+    rhythmLabel: getRhythmLabel(currentPacePerDay, safeDailyBudgetAllDays, language),
     planningSummary
   };
 
   return {
     ...summaryWithoutInsight,
-    insightMessage: buildPrimaryInsight(summaryWithoutInsight)
+    insightMessage: buildPrimaryInsight(summaryWithoutInsight, input.language ?? 'en-US')
   };
 }

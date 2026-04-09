@@ -11,6 +11,14 @@ function toUtcDate(input: ISODateString | Date): Date {
   return new Date(Date.UTC(year, month - 1, day));
 }
 
+function resolveLocale(): string {
+  if (typeof document !== 'undefined' && document.documentElement.lang) {
+    return document.documentElement.lang;
+  }
+
+  return 'en-US';
+}
+
 export function formatIsoDate(date: Date): ISODateString {
   const year = date.getUTCFullYear();
   const month = `${date.getUTCMonth() + 1}`.padStart(2, '0');
@@ -99,7 +107,7 @@ export function getDayOfMonth(isoDate: ISODateString): number {
 
 export function toMonthLabel(isoDate: ISODateString): string {
   const parsed = parseIsoDate(isoDate);
-  return new Intl.DateTimeFormat('en-US', {
+  return new Intl.DateTimeFormat(resolveLocale(), {
     month: 'long',
     year: 'numeric',
     timeZone: 'UTC'
@@ -108,7 +116,7 @@ export function toMonthLabel(isoDate: ISODateString): string {
 
 export function toShortDateLabel(isoDate: ISODateString): string {
   const parsed = parseIsoDate(isoDate);
-  return new Intl.DateTimeFormat('en-US', {
+  return new Intl.DateTimeFormat(resolveLocale(), {
     month: 'short',
     day: 'numeric',
     timeZone: 'UTC'

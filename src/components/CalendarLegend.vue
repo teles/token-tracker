@@ -3,21 +3,21 @@
     <div v-if="mode === 'heatmap'" class="grid gap-4 md:grid-cols-2">
       <div class="space-y-3">
         <div class="space-y-2">
-          <p class="panel-title">Past Usage Intensity</p>
+          <p class="panel-title">{{ pastUsageIntensityLabel }}</p>
           <div class="flex items-center gap-2">
-            <span class="text-xs text-slate-400">Low</span>
+            <span class="text-xs text-slate-400">{{ lowLabel }}</span>
             <div
               v-for="(tone, index) in intensityTones"
               :key="index"
               class="h-4 w-6 rounded-md border"
               :class="tone"
             />
-            <span class="text-xs text-slate-400">High</span>
+            <span class="text-xs text-slate-400">{{ highLabel }}</span>
           </div>
         </div>
 
         <div class="space-y-2">
-          <p class="panel-title">Past Derived Values</p>
+          <p class="panel-title">{{ pastDerivedValuesLabel }}</p>
           <div class="flex flex-wrap gap-2 text-xs">
             <span
               v-for="item in pastDerivedLegend"
@@ -33,7 +33,7 @@
 
       <div class="space-y-3">
         <div class="space-y-2">
-          <p class="panel-title">Future Planning States</p>
+          <p class="panel-title">{{ futurePlanningStatesLabel }}</p>
           <div class="flex flex-wrap gap-2 text-xs">
             <span
               v-for="item in futurePlanningLegend"
@@ -47,7 +47,7 @@
         </div>
 
         <div class="space-y-2">
-          <p class="panel-title">Day Markers</p>
+          <p class="panel-title">{{ dayMarkersLabel }}</p>
           <div class="flex flex-wrap gap-2 text-xs">
             <span
               v-for="item in dayMarkersLegend"
@@ -64,30 +64,30 @@
 
     <div v-else class="grid gap-4 md:grid-cols-2">
       <div class="space-y-2">
-        <p class="panel-title">Usage Curves</p>
+        <p class="panel-title">{{ usageCurvesLabel }}</p>
         <div class="flex flex-wrap items-center gap-3 text-xs text-slate-300">
           <span class="inline-flex items-center gap-2">
             <span class="h-2 w-5 rounded-full bg-cyan-300/90"></span>
-            Historical cumulative
+            {{ historicalCumulativeLabel }}
           </span>
           <span class="inline-flex items-center gap-2">
             <span class="h-2 w-5 rounded-full border border-violet-300/70 bg-violet-300/35"></span>
-            Projected at current pace
+            {{ projectedAtCurrentPaceLabel }}
           </span>
         </div>
       </div>
 
       <div class="space-y-2">
-        <p class="panel-title">Point Meaning</p>
+        <p class="panel-title">{{ pointMeaningLabel }}</p>
         <div class="flex flex-wrap gap-2 text-xs">
           <span class="rounded-lg border border-cyan-200/70 bg-cyan-300/15 px-2 py-1 text-cyan-100">
-            Manual Measurement
+            {{ manualMeasurementLabel }}
           </span>
           <span class="rounded-lg border border-violet-300/70 bg-violet-700/35 px-2 py-1 text-violet-100">
-            Future ON Day
+            {{ futureOnDayLabel }}
           </span>
           <span class="rounded-lg border border-slate-600/70 bg-slate-800/70 px-2 py-1 text-slate-300">
-            Future OFF Day
+            {{ futureOffDayLabel }}
           </span>
         </div>
       </div>
@@ -96,6 +96,8 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
+import { useI18n } from '@/composables/useI18n';
 import type { TemporalViewMode } from '@/types/token-tracker';
 
 interface Props {
@@ -103,6 +105,8 @@ interface Props {
 }
 
 defineProps<Props>();
+
+const { t } = useI18n();
 
 const intensityTones = [
   'bg-slate-900/70 border-slate-800/70',
@@ -112,28 +116,42 @@ const intensityTones = [
   'bg-cyan-500/50 border-cyan-300/70'
 ];
 
-const futurePlanningLegend = [
+const futurePlanningLegend = computed(() => [
   {
-    label: 'Usage On',
+    label: t('calendarLegend.usageOn'),
     className: 'border-violet-300/80 bg-violet-700/45 text-violet-100'
   },
   {
-    label: 'Usage Off',
+    label: t('calendarLegend.usageOff'),
     className: 'border-slate-600/70 bg-slate-800/70 text-slate-400'
   }
-];
+]);
 
-const dayMarkersLegend = [
+const dayMarkersLegend = computed(() => [
   {
-    label: 'Has Note',
+    label: t('calendarLegend.hasNote'),
     className: 'border-amber-300/60 bg-amber-500/15 text-amber-100'
   }
-];
+]);
 
-const pastDerivedLegend = [
+const pastDerivedLegend = computed(() => [
   {
-    label: 'Estimated Usage',
+    label: t('calendarLegend.estimatedUsage'),
     className: 'estimated-legend-chip border-slate-400/50 bg-slate-700/30 text-slate-200'
   }
-];
+]);
+
+const lowLabel = computed(() => t('calendarLegend.low'));
+const highLabel = computed(() => t('calendarLegend.high'));
+const pastUsageIntensityLabel = computed(() => t('calendarLegend.pastUsageIntensity'));
+const pastDerivedValuesLabel = computed(() => t('calendarLegend.pastDerivedValues'));
+const futurePlanningStatesLabel = computed(() => t('calendarLegend.futurePlanningStates'));
+const dayMarkersLabel = computed(() => t('calendarLegend.dayMarkers'));
+const usageCurvesLabel = computed(() => t('calendarLegend.usageCurves'));
+const historicalCumulativeLabel = computed(() => t('calendarLegend.historicalCumulative'));
+const projectedAtCurrentPaceLabel = computed(() => t('calendarLegend.projectedAtCurrentPace'));
+const pointMeaningLabel = computed(() => t('calendarLegend.pointMeaning'));
+const manualMeasurementLabel = computed(() => t('calendarLegend.manualMeasurement'));
+const futureOnDayLabel = computed(() => t('calendarLegend.futureOnDay'));
+const futureOffDayLabel = computed(() => t('calendarLegend.futureOffDay'));
 </script>

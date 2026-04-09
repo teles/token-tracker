@@ -2,7 +2,7 @@
   <section class="panel-surface p-5 sm:p-6">
     <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div>
-        <p class="panel-title">Temporal Usage</p>
+        <p class="panel-title">{{ temporalUsageLabel }}</p>
         <h2 class="mt-2 text-lg font-semibold text-slate-100">{{ monthLabel }}</h2>
       </div>
 
@@ -59,7 +59,7 @@
           <span class="font-mono text-xs" :class="day.isCurrentMonth ? 'text-slate-100' : 'text-slate-600'">
             {{ day.dayNumber }}
           </span>
-          <span v-if="day.isMeasurementDay" class="absolute bottom-1 left-2 text-[10px] text-cyan-200">Measured</span>
+          <span v-if="day.isMeasurementDay" class="absolute bottom-1 left-2 text-[10px] text-cyan-200">{{ measuredLabel }}</span>
         </button>
       </div>
     </template>
@@ -74,6 +74,7 @@
 
 <script setup lang="ts">
 import { computed, ref, type ComponentPublicInstance } from 'vue';
+import { useI18n } from '@/composables/useI18n';
 import UsageTrendChart from '@/components/UsageTrendChart.vue';
 import type {
   CalendarDayModel,
@@ -98,16 +99,32 @@ const emit = defineEmits<{
   (event: 'change-view', value: TemporalViewMode): void;
 }>();
 
-const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-const viewModes: Array<{ value: TemporalViewMode; label: string }> = [
-  { value: 'heatmap', label: 'Heatmap' },
-  { value: 'chart', label: 'Usage Chart' }
-];
+const { t } = useI18n();
+
+const weekdays = computed(() =>
+  [
+    t('calendarHeatmap.weekday.mon'),
+    t('calendarHeatmap.weekday.tue'),
+    t('calendarHeatmap.weekday.wed'),
+    t('calendarHeatmap.weekday.thu'),
+    t('calendarHeatmap.weekday.fri'),
+    t('calendarHeatmap.weekday.sat'),
+    t('calendarHeatmap.weekday.sun')
+  ]
+);
+
+const viewModes = computed<Array<{ value: TemporalViewMode; label: string }>>(() => [
+  { value: 'heatmap', label: t('calendarHeatmap.view.heatmap') },
+  { value: 'chart', label: t('calendarHeatmap.view.chart') }
+]);
+
+const temporalUsageLabel = computed(() => t('calendarHeatmap.temporalUsage'));
+const measuredLabel = computed(() => t('calendarHeatmap.measured'));
 
 const interactionHint = computed(() =>
   props.viewMode === 'heatmap'
-    ? 'Future: toggle ON/OFF. Past or today: open Manual Usage Input.'
-    : 'Past points open Manual Usage Input. Future planning stays in Heatmap mode.'
+    ? t('calendarHeatmap.interaction.heatmap')
+    : t('calendarHeatmap.interaction.chart')
 );
 
 const pastIntensityClassMap = {
@@ -205,30 +222,60 @@ function onCellKeydown(event: KeyboardEvent, day: CalendarDayModel) {
 
 function getAriaLabel(day: CalendarDayModel): string {
   const dateLabel = toShortDateLabel(day.date);
-  const noteLabel = day.hasNote ? ', has note' : '';
-  const estimatedLabel = day.hasEstimatedUsage ? ', estimated usage' : '';
+  const noteLabel = day.hasNote
+    ? t('calendarHeatmap.aria.noteSuffix')
+    : '';
+  const estimatedLabel = day.hasEstimatedUsage
+    ? t('calendarHeatmap.aria.estimatedSuffix')
+    : '';
 
   if (!day.isCurrentMonth) {
-    return `${dateLabel}, outside current month${noteLabel}${estimatedLabel}`;
+    return t('calendarHeatmap.aria.outsideMonth', {
+      date: dateLabel,
+      noteSuffix: noteLabel,
+      estimatedSuffix: estimatedLabel
+    });
   }
 
   if (day.isPast) {
-    return `${dateLabel}, past usage intensity ${day.pastIntensity} out of 4, click to edit${noteLabel}${estimatedLabel}`;
+    return t('calendarHeatmap.aria.past', {
+      date: dateLabel,
+      intensity: day.pastIntensity,
+      noteSuffix: noteLabel,
+      estimatedSuffix: estimatedLabel
+    });
   }
 
   if (day.isFuture) {
-    return `${dateLabel}, future plan ${day.planningState === 'on' ? 'on' : 'off'}${noteLabel}${estimatedLabel}`;
+    return t('calendarHeatmap.aria.future', {
+      date: dateLabel,
+      state: t(day.planningState === 'on' ? 'calendarHeatmap.state.on' : 'calendarHeatmap.state.off'),
+      noteSuffix: noteLabel,
+      estimatedSuffix: estimatedLabel
+    });
   }
 
   if (day.isMeasurementDay) {
-    return `${dateLabel}, measurement day${noteLabel}${estimatedLabel}`;
+    return t('calendarHeatmap.aria.measurementDay', {
+      date: dateLabel,
+      noteSuffix: noteLabel,
+      estimatedSuffix: estimatedLabel
+    });
   }
 
   if (day.isToday) {
-    return `${dateLabel}, today${noteLabel}${estimatedLabel}`;
+    return t('calendarHeatmap.aria.today', {
+      date: dateLabel,
+      noteSuffix: noteLabel,
+      estimatedSuffix: estimatedLabel
+    });
   }
 
-  return `${dateLabel}${noteLabel}${estimatedLabel}`;
+  return t('calendarHeatmap.aria.default', {
+    date: dateLabel,
+    noteSuffix: noteLabel,
+    estimatedSuffix: estimatedLabel
+  });
 }
 
 function getCellClasses(day: CalendarDayModel): string[] {

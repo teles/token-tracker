@@ -1,12 +1,13 @@
 <template>
   <section class="panel-surface p-5 sm:p-6" :class="toneClass">
-    <p class="panel-title">Primary Insight</p>
+    <p class="panel-title">{{ t('insight.primaryTitle') }}</p>
     <p class="mt-3 max-w-3xl text-base text-slate-100 sm:text-lg">{{ message }}</p>
   </section>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue';
+import { useI18n } from '@/composables/useI18n';
 import type { SafetyStatus } from '@/types/token-tracker';
 
 interface Props {
@@ -15,6 +16,7 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const { t } = useI18n();
 
 const toneClassByStatus: Record<SafetyStatus, string> = {
   safe: 'border-emerald-400/40 bg-emerald-900/15',

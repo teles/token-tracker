@@ -2,7 +2,7 @@
   <main class="min-h-screen">
     <div class="px-4 py-8 sm:px-6 lg:px-10 lg:py-10">
       <div class="mx-auto flex w-full max-w-7xl flex-col gap-6">
-        <PageHeader />
+        <PageHeader :language-label="languageLabel" @open-settings="isSettingsOpen = true" />
 
         <UsageInputCard
           ref="usageInputCardRef"
@@ -41,11 +41,17 @@
     </div>
 
     <ProjectFooter />
+    <SettingsModal
+      :open="isSettingsOpen"
+      :language="language"
+      @close="isSettingsOpen = false"
+      @update:language="setLanguage($event)"
+    />
   </main>
 </template>
 
 <script setup lang="ts">
-import { nextTick, ref } from 'vue';
+import { computed, nextTick, ref } from 'vue';
 import CalendarHeatmap from '@/components/CalendarHeatmap.vue';
 import CalendarLegend from '@/components/CalendarLegend.vue';
 import DiagnosticsGrid from '@/components/DiagnosticsGrid.vue';
@@ -53,8 +59,12 @@ import InsightCard from '@/components/InsightCard.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import PlanningShortcuts from '@/components/PlanningShortcuts.vue';
 import ProjectFooter from '@/components/ProjectFooter.vue';
+import SettingsModal from '@/components/SettingsModal.vue';
 import UsageInputCard from '@/components/UsageInputCard.vue';
+import { useI18n } from '@/composables/useI18n';
 import { useTokenTrackerState } from '@/composables/useTokenTrackerState';
+import { useUiLanguage } from '@/composables/useUiLanguage';
+import { appLanguageDescriptorByValue } from '@/types/app-settings';
 import type { ISODateString, TemporalViewMode } from '@/types/token-tracker';
 
 const {
@@ -80,6 +90,11 @@ type UsageInputCardExposed = {
 
 const usageInputCardRef = ref<UsageInputCardExposed | null>(null);
 const temporalViewMode = ref<TemporalViewMode>('heatmap');
+const isSettingsOpen = ref(false);
+const { language, setLanguage } = useUiLanguage();
+const { t } = useI18n();
+
+const languageLabel = computed(() => t(appLanguageDescriptorByValue[language.value].badgeLabelKey));
 
 async function handleSelectDay(date: ISODateString) {
   updateMeasurementDateInput(date);

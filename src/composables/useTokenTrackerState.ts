@@ -5,6 +5,7 @@ import {
   findNeighborMeasurements
 } from '@/domain/usage-history';
 import { buildWhatIfScenarios } from '@/domain/what-if';
+import { useI18n } from '@/composables/useI18n';
 import {
   initialCycle,
   initialPlanning,
@@ -97,6 +98,7 @@ function normalizePlanningEntries(anchorDate: ISODateString, planning: PlanningM
 }
 
 export function useTokenTrackerState() {
+  const { language, t } = useI18n();
   const referenceDate = resolveReferenceDate(initialCycle);
   const restored = loadPersistedState(initialCycle);
 
@@ -140,7 +142,8 @@ export function useTokenTrackerState() {
     buildDiagnosticSummary({
       snapshot: analysisSnapshot.value,
       cycle: initialCycle,
-      planning
+      planning,
+      language: language.value
     })
   );
 
@@ -175,8 +178,10 @@ export function useTokenTrackerState() {
   );
 
   const planningStatusLabel = computed(
-    () =>
-      `${diagnostics.value.planningSummary.plannedUsageDays} ON / ${diagnostics.value.planningSummary.plannedOffDays} OFF`
+    () => t('planningShortcuts.statusLabel', {
+      onDays: diagnostics.value.planningSummary.plannedUsageDays,
+      offDays: diagnostics.value.planningSummary.plannedOffDays
+    })
   );
 
   const isFormValid = computed(
@@ -185,24 +190,24 @@ export function useTokenTrackerState() {
 
   function validateMeasurementDateInput(value: string): ISODateString | null {
     if (!value) {
-      validationErrors.measurementDate = 'Measurement date is required.';
+      validationErrors.measurementDate = t('validation.measurementDate.required');
       return null;
     }
 
     const parsed = parseMeasurementDateInput(value);
 
     if (!parsed) {
-      validationErrors.measurementDate = 'Use a valid date format.';
+      validationErrors.measurementDate = t('validation.measurementDate.invalidFormat');
       return null;
     }
 
     if (!isBetweenInclusive(parsed, initialCycle.cycleStart, initialCycle.resetDate)) {
-      validationErrors.measurementDate = 'Date must stay inside the current cycle.';
+      validationErrors.measurementDate = t('validation.measurementDate.outOfCycle');
       return null;
     }
 
     if (isBefore(todayIsoDate(), parsed)) {
-      validationErrors.measurementDate = 'Measurement date cannot be in the future.';
+      validationErrors.measurementDate = t('validation.measurementDate.future');
       return null;
     }
 
@@ -212,19 +217,21 @@ export function useTokenTrackerState() {
 
   function validateConsumedPercentInput(value: string): number | null {
     if (!value) {
-      validationErrors.consumedPercent = 'Consumed quota is required.';
+      validationErrors.consumedPercent = t('validation.consumed.required');
       return null;
     }
 
     const parsed = parseConsumedPercentInput(value);
 
     if (parsed === null) {
-      validationErrors.consumedPercent = 'Enter a valid numeric percentage.';
+      validationErrors.consumedPercent = t('validation.consumed.invalid');
       return null;
     }
 
     if (parsed < 0 || parsed > initialCycle.quotaPercent) {
-      validationErrors.consumedPercent = `Value must be between 0 and ${initialCycle.quotaPercent}.`;
+      validationErrors.consumedPercent = t('validation.consumed.outOfRange', {
+        max: initialCycle.quotaPercent
+      });
       return null;
     }
 
@@ -232,13 +239,19 @@ export function useTokenTrackerState() {
 
     if (neighbors.previous && parsed < neighbors.previous.consumedPercent) {
       validationErrors.consumedPercent =
-        `Value cannot be lower than ${toDisplayPercent(neighbors.previous.consumedPercent)}% from ${neighbors.previous.date}.`;
+        t('validation.consumed.lowerThanPrevious', {
+          value: toDisplayPercent(neighbors.previous.consumedPercent),
+          date: neighbors.previous.date
+        });
       return null;
     }
 
     if (neighbors.next && parsed > neighbors.next.consumedPercent) {
       validationErrors.consumedPercent =
-        `Value cannot be higher than ${toDisplayPercent(neighbors.next.consumedPercent)}% from ${neighbors.next.date}.`;
+        t('validation.consumed.higherThanNext', {
+          value: toDisplayPercent(neighbors.next.consumedPercent),
+          date: neighbors.next.date
+        });
       return null;
     }
 
@@ -248,7 +261,9 @@ export function useTokenTrackerState() {
 
   function validateDayNoteInput(value: string): boolean {
     if (value.length > DAY_NOTE_MAX_LENGTH) {
-      validationErrors.dayNote = `Keep note up to ${DAY_NOTE_MAX_LENGTH} characters.`;
+      validationErrors.dayNote = t('validation.dayNote.maxLength', {
+        max: DAY_NOTE_MAX_LENGTH
+      });
       return false;
     }
 

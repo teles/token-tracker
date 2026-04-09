@@ -2,17 +2,17 @@
   <section ref="sectionRef" class="panel-surface p-5 sm:p-6">
     <div class="mb-5 flex flex-wrap items-start justify-between gap-3">
       <div>
-        <p class="panel-title">Current Snapshot</p>
-        <h2 class="mt-2 text-lg font-semibold text-slate-100">Manual Usage Input</h2>
+        <p class="panel-title">{{ t('usageInput.currentSnapshot') }}</p>
+        <h2 class="mt-2 text-lg font-semibold text-slate-100">{{ t('usageInput.manualUsageInput') }}</h2>
       </div>
       <div class="rounded-xl border border-cyan-400/25 bg-cyan-500/10 px-3 py-2 text-xs text-cyan-200">
-        Cycle {{ cycleStartLabel }} - {{ cycleResetLabel }}
+        {{ t('usageInput.cycle') }} {{ cycleStartLabel }} - {{ cycleResetLabel }}
       </div>
     </div>
 
     <div class="grid gap-4 sm:grid-cols-2">
       <label class="space-y-2">
-        <span class="text-sm font-medium text-slate-200">Measurement Date</span>
+        <span class="text-sm font-medium text-slate-200">{{ t('usageInput.measurementDate') }}</span>
         <input
           ref="measurementDateInputRef"
           required
@@ -28,7 +28,7 @@
       </label>
 
       <label class="space-y-2">
-        <span class="text-sm font-medium text-slate-200">Consumed Quota (%)</span>
+        <span class="text-sm font-medium text-slate-200">{{ t('usageInput.consumedQuota') }}</span>
         <input
           ref="consumedPercentInputRef"
           required
@@ -53,9 +53,9 @@
         @click="isDayNoteOpen = !isDayNoteOpen"
       >
         <div class="min-w-0">
-          <p class="text-sm font-medium text-slate-200">Day Note (optional)</p>
+          <p class="text-sm font-medium text-slate-200">{{ t('usageInput.dayNote') }}</p>
           <p class="mt-1 truncate text-xs text-slate-500">
-            {{ dayNotePreview || 'Add short context for this day (deploy, incident, travel, etc.).' }}
+            {{ dayNotePreview || t('usageInput.dayNoteHint') }}
           </p>
         </div>
         <span
@@ -73,13 +73,13 @@
           :value="dayNoteInput"
           rows="2"
           :maxlength="dayNoteMaxLength"
-          placeholder="Short context for this day (deploy, incident, travel, etc.)"
+          :placeholder="t('usageInput.dayNoteHint')"
           class="w-full resize-none rounded-xl border border-slate-700/70 bg-slate-900/80 px-3 py-2.5 text-sm text-slate-100 outline-none transition focus:border-cyan-300/60"
           :class="errors.dayNote ? 'border-rose-300/60 focus:border-rose-300/70' : ''"
           @input="onDayNoteInput"
         />
         <p v-if="errors.dayNote" class="text-xs text-rose-200">{{ errors.dayNote }}</p>
-        <p v-else class="text-xs text-slate-500">Saved for the selected date and shown as a marker in the calendar.</p>
+        <p v-else class="text-xs text-slate-500">{{ t('usageInput.dayNoteSaved') }}</p>
       </div>
     </div>
   </section>
@@ -87,6 +87,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
+import { useI18n } from '@/composables/useI18n';
 import type { CycleInfo, InputValidationErrors } from '@/types/token-tracker';
 import { toShortDateLabel } from '@/utils/date';
 
@@ -115,12 +116,17 @@ const measurementDateInputRef = ref<HTMLInputElement | null>(null);
 const consumedPercentInputRef = ref<HTMLInputElement | null>(null);
 const isDayNoteOpen = ref(false);
 const dayNotePreview = computed(() => props.dayNoteInput.trim());
+const { t } = useI18n();
 const dayNoteActionLabel = computed(() => {
   if (isDayNoteOpen.value) {
-    return 'Close note field';
+    return t('usageInput.noteAction.close');
   }
 
-  return dayNotePreview.value ? 'Open note field' : 'Add note';
+  if (dayNotePreview.value) {
+    return t('usageInput.noteAction.open');
+  }
+
+  return t('usageInput.noteAction.add');
 });
 
 watch(

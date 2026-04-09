@@ -2,13 +2,13 @@
   <section class="rounded-xl border border-slate-700/60 bg-slate-950/35 p-4">
     <div class="mb-4 flex flex-wrap items-end justify-between gap-3">
       <div>
-        <p class="panel-title">Cumulative Usage Curve</p>
+        <p class="panel-title">{{ cumulativeUsageCurveLabel }}</p>
         <p class="mt-2 text-sm text-slate-300">
-          Historical usage plus a pace-based projection until reset.
+          {{ chartDescription }}
         </p>
       </div>
       <p class="text-xs text-slate-400">
-        Click past points to edit measurements. Use Heatmap mode to toggle future ON/OFF days.
+        {{ chartHint }}
       </p>
     </div>
 
@@ -17,7 +17,7 @@
         class="h-full w-full"
         :viewBox="`0 0 ${chart.width} ${chart.height}`"
         role="img"
-        aria-label="Usage trend chart"
+        :aria-label="usageTrendChartAriaLabel"
       >
         <g v-for="tick in yTicks" :key="tick.value">
           <line
@@ -126,6 +126,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
+import { useI18n } from '@/composables/useI18n';
 import type { ISODateString, UsageChartModel, UsageChartPointModel } from '@/types/token-tracker';
 import { toShortDateLabel } from '@/utils/date';
 
@@ -138,6 +139,8 @@ const props = defineProps<Props>();
 const emit = defineEmits<{
   (event: 'select-day', value: ISODateString): void;
 }>();
+
+const { t } = useI18n();
 
 const chart = {
   width: 100,
@@ -196,7 +199,11 @@ const axisStartLabel = computed(() => {
 
 const axisTodayLabel = computed(() => {
   const today = props.model.points.find((point) => point.isToday);
-  return today ? `Today · ${toShortDateLabel(today.date)}` : '';
+  if (!today) {
+    return '';
+  }
+
+  return t('usageTrend.todayAxis', { date: toShortDateLabel(today.date) });
 });
 
 const axisEndLabel = computed(() => {
@@ -247,7 +254,10 @@ function getPointStroke(point: UsageChartPointModel): string {
 }
 
 function getPointAriaLabel(point: UsageChartPointModel): string {
-  return `${toShortDateLabel(point.date)}, ${point.cumulativePercent.toFixed(1)} percent cumulative, click to edit`;
+  return t('usageTrend.pointAria', {
+    date: toShortDateLabel(point.date),
+    percent: point.cumulativePercent.toFixed(1)
+  });
 }
 
 function onPointKeydown(event: KeyboardEvent, date: ISODateString) {
@@ -258,4 +268,11 @@ function onPointKeydown(event: KeyboardEvent, date: ISODateString) {
   event.preventDefault();
   emit('select-day', date);
 }
+
+const cumulativeUsageCurveLabel = computed(() =>
+  t('usageTrend.title')
+);
+const chartDescription = computed(() => t('usageTrend.description'));
+const chartHint = computed(() => t('usageTrend.hint'));
+const usageTrendChartAriaLabel = computed(() => t('usageTrend.ariaLabel'));
 </script>
