@@ -33,11 +33,18 @@ class MemoryStorage implements Storage {
 
 describe('useTokenTrackerState', () => {
   beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(Date.UTC(2026, 3, 9, 12, 0, 0)));
+
     Object.defineProperty(globalThis, 'localStorage', {
       value: new MemoryStorage(),
       configurable: true,
       writable: true
     });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('validates invalid input without mutating snapshot', () => {
@@ -72,15 +79,25 @@ describe('useTokenTrackerState', () => {
 
   it('toggles a future day on and off', () => {
     const state = useTokenTrackerState();
+    const actualToday = todayIsoDate();
+    const actualFutureDate = addDays(actualToday, 1);
+
     state.updateMeasurementDateInput(state.cycle.cycleStart);
 
-    const futureDate = addDays(state.snapshot.measurementDate, 1);
+    const historicalDay = addDays(state.cycle.cycleStart, 1);
 
-    state.toggleFutureDay(futureDate);
-    expect(state.planning[futureDate]).toBe('on');
+    state.toggleFutureDay(historicalDay);
+    expect(state.planning[historicalDay]).toBeUndefined();
 
-    state.toggleFutureDay(futureDate);
-    expect(state.planning[futureDate]).toBeUndefined();
+    const initialFutureState = state.planning[actualFutureDate] ?? 'off';
+
+    state.toggleFutureDay(actualFutureDate);
+    const afterFirstToggle = state.planning[actualFutureDate] ?? 'off';
+    expect(afterFirstToggle).not.toBe(initialFutureState);
+
+    state.toggleFutureDay(actualFutureDate);
+    const afterSecondToggle = state.planning[actualFutureDate] ?? 'off';
+    expect(afterSecondToggle).toBe(initialFutureState);
   });
 
   it('persists active date, usage history and planning to localStorage', async () => {

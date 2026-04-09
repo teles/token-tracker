@@ -34,15 +34,29 @@ import {
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
+function resolveReferenceDate(cycle: typeof initialCycle): ISODateString {
+  const today = todayIsoDate();
+
+  if (isBefore(today, cycle.cycleStart)) {
+    return cycle.cycleStart;
+  }
+
+  if (isBefore(cycle.resetDate, today)) {
+    return cycle.resetDate;
+  }
+
+  return today;
+}
+
 function toDisplayPercent(value: number): string {
   const rounded = Math.round(value * 10) / 10;
   return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
 }
 
-function isFutureDateInCycle(date: ISODateString, snapshot: UsageSnapshot): boolean {
+function isFutureDateInCycle(date: ISODateString, anchorDate: ISODateString): boolean {
   return (
     isBetweenInclusive(date, initialCycle.cycleStart, initialCycle.resetDate) &&
-    isBetweenInclusive(date, addDays(snapshot.measurementDate, 1), initialCycle.resetDate)
+    isBetweenInclusive(date, addDays(anchorDate, 1), initialCycle.resetDate)
   );
 }
 
@@ -68,8 +82,8 @@ function parseConsumedPercentInput(value: string): number | null {
   return parsed;
 }
 
-function normalizePlanningEntries(snapshot: UsageSnapshot, planning: PlanningMap): void {
-  const futureWindowStart = addDays(snapshot.measurementDate, 1);
+function normalizePlanningEntries(anchorDate: ISODateString, planning: PlanningMap): void {
+  const futureWindowStart = addDays(anchorDate, 1);
 
   for (const date of Object.keys(planning) as ISODateString[]) {
     if (!isBetweenInclusive(date, futureWindowStart, initialCycle.resetDate)) {
@@ -79,6 +93,7 @@ function normalizePlanningEntries(snapshot: UsageSnapshot, planning: PlanningMap
 }
 
 export function useTokenTrackerState() {
+  const referenceDate = resolveReferenceDate(initialCycle);
   const restored = loadPersistedState(initialCycle);
 
   const usageHistory = reactive<UsageHistoryMap>(
@@ -95,7 +110,7 @@ export function useTokenTrackerState() {
     consumedPercent: estimateConsumedPercentForDate(initialMeasurementDate, usageHistory, initialCycle)
   });
 
-  normalizePlanningEntries(snapshot, planning);
+  normalizePlanningEntries(referenceDate, planning);
 
   const formState = reactive<{ measurementDate: string; consumedPercent: string }>({
     measurementDate: snapshot.measurementDate,
@@ -107,11 +122,16 @@ export function useTokenTrackerState() {
     consumedPercent: ''
   });
 
-  const monthLabel = computed(() => toMonthLabel(snapshot.measurementDate));
+  const analysisSnapshot = computed<UsageSnapshot>(() => ({
+    measurementDate: referenceDate,
+    consumedPercent: estimateConsumedPercentForDate(referenceDate, usageHistory, initialCycle)
+  }));
+
+  const monthLabel = computed(() => toMonthLabel(referenceDate));
 
   const diagnostics = computed(() =>
     buildDiagnosticSummary({
-      snapshot,
+      snapshot: analysisSnapshot.value,
       cycle: initialCycle,
       planning
     })
@@ -119,10 +139,12 @@ export function useTokenTrackerState() {
 
   const calendarDays = computed(() =>
     buildCalendarModel({
-      snapshot,
+      snapshot: analysisSnapshot.value,
+      measurementDate: snapshot.measurementDate,
       cycle: initialCycle,
       planning,
-      usageHistory
+      usageHistory,
+      today: referenceDate
     })
   );
 
@@ -219,7 +241,7 @@ export function useTokenTrackerState() {
     snapshot.consumedPercent = estimateConsumedPercentForDate(parsed, usageHistory, initialCycle);
     formState.consumedPercent = toDisplayPercent(snapshot.consumedPercent);
     validationErrors.consumedPercent = '';
-    normalizePlanningEntries(snapshot, planning);
+    normalizePlanningEntries(referenceDate, planning);
   }
 
   function updateConsumedPercentInput(value: string) {
@@ -237,7 +259,7 @@ export function useTokenTrackerState() {
   }
 
   function toggleFutureDay(date: ISODateString) {
-    if (!isFutureDateInCycle(date, snapshot)) {
+    if (!isFutureDateInCycle(date, referenceDate)) {
       return;
     }
 
@@ -252,7 +274,7 @@ export function useTokenTrackerState() {
   }
 
   function applyShortcut(shortcut: PlanningShortcut) {
-    const futureDates = eachDayInclusive(addDays(snapshot.measurementDate, 1), initialCycle.resetDate);
+    const futureDates = eachDayInclusive(addDays(referenceDate, 1), initialCycle.resetDate);
 
     if (shortcut === 'clear') {
       for (const date of futureDates) {

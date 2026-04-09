@@ -23,6 +23,7 @@ import {
 
 interface BuildCalendarModelInput {
   snapshot: UsageSnapshot;
+  measurementDate: ISODateString;
   cycle: CycleInfo;
   planning: PlanningMap;
   usageHistory: UsageHistoryMap;
@@ -38,7 +39,7 @@ function isCurrentMonth(
 }
 
 export function buildCalendarModel(input: BuildCalendarModelInput): CalendarDayModel[] {
-  const { snapshot, cycle, planning, usageHistory } = input;
+  const { snapshot, measurementDate, cycle, planning, usageHistory } = input;
   const today = input.today ?? todayIsoDate();
 
   const monthStart = startOfMonth(snapshot.measurementDate);
@@ -65,7 +66,7 @@ export function buildCalendarModel(input: BuildCalendarModelInput): CalendarDayM
       isPast,
       isFuture,
       isToday: isSameDate(date, today),
-      isMeasurementDay: isSameDate(date, snapshot.measurementDate),
+      isMeasurementDay: isSameDate(date, measurementDate),
       pastIntensity: isPast ? pastIntensities[date] ?? 0 : 0,
       planningState: isFuture ? planning[date] ?? 'off' : 'off'
     };
