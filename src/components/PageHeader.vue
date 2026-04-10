@@ -6,8 +6,8 @@
         <h1 class="mt-2 text-3xl font-semibold tracking-tight text-slate-50 sm:text-4xl">{{ t(titleKey) }}</h1>
       </div>
 
-      <div class="flex flex-col items-end gap-2">
-        <nav class="inline-flex rounded-xl border border-slate-700/70 bg-slate-900/80 p-1">
+      <div class="flex flex-wrap items-center justify-end gap-2">
+        <div class="inline-flex items-center rounded-xl border border-slate-700/70 bg-slate-900/80 p-1">
           <button
             v-for="item in menuItems"
             :key="item.page"
@@ -21,18 +21,20 @@
           >
             {{ item.label }}
           </button>
-        </nav>
 
-        <button
-          type="button"
-          class="inline-flex items-center gap-2 rounded-xl border border-slate-600/70 bg-slate-900/80 px-3 py-2 text-xs font-medium text-slate-200 transition hover:border-cyan-300/60 hover:text-cyan-100"
-          @click="$emit('open-settings')"
-        >
-          {{ t('header.settings') }}
-          <span class="rounded-md border border-slate-600/70 bg-slate-950/70 px-1.5 py-0.5 text-[10px] text-slate-300">
-            {{ languageLabel }}
-          </span>
-        </button>
+          <span class="mx-1 h-5 w-px bg-slate-700/80" aria-hidden="true" />
+
+          <button
+            type="button"
+            class="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-300 transition hover:text-slate-100"
+            @click="$emit('open-settings')"
+          >
+            {{ t('header.settings') }}
+            <span class="rounded-md border border-slate-600/70 bg-slate-950/70 px-1.5 py-0.5 text-[10px] text-slate-300">
+              {{ languageLabel }}
+            </span>
+          </button>
+        </div>
       </div>
     </div>
 

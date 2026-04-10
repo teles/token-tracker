@@ -24,9 +24,10 @@
                 {{ latestMeasurement ? toShortDateLabel(latestMeasurement.date) : t('history.emptyHistorical') }}
               </p>
               <p class="mt-2 text-xs text-slate-500">
-                {{ t('history.summary.measurementsHint', { count: measurementRecords.length }) }}
+                {{ t('history.summary.measurementsHint', { count: manualMeasurementRecords.length }) }}
               </p>
             </article>
+
             <article class="rounded-xl border border-slate-700/60 bg-slate-900/50 p-4">
               <p class="panel-title">{{ t('history.summary.latestNote') }}</p>
               <p v-if="latestNote" class="mt-2 text-lg font-semibold text-amber-100">
@@ -40,6 +41,7 @@
                 {{ t('history.summary.notesHint', { count: noteRecords.length }) }}
               </p>
             </article>
+
             <article class="rounded-xl border border-slate-700/60 bg-slate-900/50 p-4">
               <p class="panel-title">{{ t('history.summary.nextOnDay') }}</p>
               <p v-if="nextFutureOn" class="mt-2 text-2xl font-semibold text-violet-100">
@@ -57,6 +59,51 @@
         </section>
 
         <section class="panel-surface p-5 sm:p-6">
+          <div class="flex flex-wrap items-start justify-between gap-3">
+            <p class="panel-title">{{ t('usageInput.dayNote') }}</p>
+            <span class="rounded-md border border-slate-700/70 bg-slate-950/70 px-2 py-1 font-mono text-[10px] text-slate-400">
+              {{ formState.measurementDate }}
+            </span>
+          </div>
+
+          <div class="mt-3 grid gap-3 sm:grid-cols-[180px_1fr]">
+            <label class="space-y-1">
+              <span class="text-xs text-slate-400">{{ t('usageInput.measurementDate') }}</span>
+              <input
+                type="date"
+                :value="formState.measurementDate"
+                :min="cycle.cycleStart"
+                :max="referenceDate"
+                class="w-full rounded-xl border border-slate-700/70 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-300/60"
+                :class="validationErrors.measurementDate ? 'border-rose-300/60 focus:border-rose-300/70' : ''"
+                @input="updateMeasurementDateInput(($event.target as HTMLInputElement).value)"
+              />
+            </label>
+
+            <label class="space-y-1">
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-xs text-slate-400">{{ t('usageInput.dayNote') }}</span>
+                <span class="text-xs text-slate-500">{{ formState.dayNote.length }}/{{ dayNoteMaxLength }}</span>
+              </div>
+              <textarea
+                :value="formState.dayNote"
+                rows="2"
+                :maxlength="dayNoteMaxLength"
+                :placeholder="t('usageInput.dayNoteHint')"
+                class="w-full resize-none rounded-xl border border-slate-700/70 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-300/60"
+                :class="validationErrors.dayNote ? 'border-rose-300/60 focus:border-rose-300/70' : ''"
+                @input="updateDayNoteInput(($event.target as HTMLTextAreaElement).value)"
+              />
+            </label>
+          </div>
+
+          <p v-if="validationErrors.measurementDate || validationErrors.dayNote" class="mt-2 text-xs text-rose-200">
+            {{ validationErrors.measurementDate || validationErrors.dayNote }}
+          </p>
+          <p v-else class="mt-2 text-xs text-slate-500">{{ t('usageInput.dayNoteSaved') }}</p>
+        </section>
+
+        <section class="panel-surface p-5 sm:p-6">
           <div class="flex flex-wrap items-end justify-between gap-3">
             <p class="panel-title">{{ t('history.timeline') }}</p>
             <div class="space-y-1">
@@ -68,7 +115,7 @@
                   type="button"
                   class="inline-flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs transition"
                   :class="filter.id === activeFilter
-                    ? 'border-cyan-300/60 bg-cyan-500/15 text-cyan-100'
+                    ? 'border-cyan-200/80 bg-cyan-400/25 text-cyan-50 shadow-[0_0_0_1px_rgba(165,243,252,0.35)]'
                     : 'border-slate-600/70 bg-slate-900/70 text-slate-300 hover:border-slate-500/80'"
                   @click="activeFilter = filter.id"
                 >
@@ -76,6 +123,17 @@
                   <span class="rounded border border-slate-600/60 bg-slate-950/70 px-1.5 py-0.5 font-mono text-[10px] text-slate-400">
                     {{ filter.count }}
                   </span>
+                </button>
+
+                <button
+                  type="button"
+                  class="inline-flex items-center rounded-lg border px-2.5 py-1.5 text-xs transition"
+                  :class="showEstimatedMeasurements
+                    ? 'border-slate-300/70 bg-slate-500/20 text-slate-100'
+                    : 'border-slate-600/70 bg-slate-900/70 text-slate-300 hover:border-slate-500/80'"
+                  @click="showEstimatedMeasurements = !showEstimatedMeasurements"
+                >
+                  {{ showEstimatedMeasurements ? t('history.filters.hideEstimated') : t('history.filters.showEstimated') }}
                 </button>
               </div>
             </div>
@@ -105,7 +163,10 @@
                   v-for="entry in historicalVisibleEntries"
                   :key="`${entry.kind}-${entry.date}`"
                   class="rounded-xl border p-4"
-                  :class="entryContainerClassByKind[entry.kind]"
+                  :class="[
+                    entryContainerClassByKind[entry.kind],
+                    entry.kind === 'measurement' && entry.isEstimated ? 'history-estimated-entry history-estimated-muted' : ''
+                  ]"
                 >
                   <div class="flex items-start justify-between gap-3">
                     <div class="min-w-0 space-y-2">
@@ -117,8 +178,54 @@
                           {{ entry.label }}
                         </span>
                         <span class="text-sm font-semibold text-slate-100">{{ toShortDateLabel(entry.date) }}</span>
+                        <span
+                          v-if="entry.kind === 'measurement' && entry.isEstimated"
+                          class="history-estimated-badge rounded-md border px-2 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-slate-100"
+                        >
+                          {{ t('history.entry.estimated') }}
+                        </span>
                       </div>
                       <p class="text-sm text-slate-200">{{ entry.detail }}</p>
+
+                      <div
+                        v-if="entry.kind === 'measurement'"
+                        class="space-y-1"
+                      >
+                        <div class="flex flex-wrap items-center gap-2">
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.1"
+                            :aria-label="t('usageInput.consumedQuota')"
+                            class="w-28 rounded-lg border border-slate-600/70 bg-slate-950/70 px-2.5 py-1.5 text-xs text-slate-100 outline-none transition focus:border-cyan-300/60"
+                            :value="getMeasurementDraft(entry.date, entry.consumedPercent ?? 0)"
+                            @input="onMeasurementDraftInput(entry.date, $event)"
+                            @blur="onMeasurementDraftBlur(entry.date, entry.consumedPercent ?? 0)"
+                            @keydown.enter.prevent="onMeasurementDraftEnter(entry.date, entry.consumedPercent ?? 0)"
+                          />
+                          <button
+                            v-if="isMeasurementDraftDirty(entry.date, entry.consumedPercent ?? 0)"
+                            type="button"
+                            class="rounded-lg border border-cyan-300/60 bg-cyan-500/15 px-2.5 py-1.5 text-xs font-medium text-cyan-100 transition hover:border-cyan-200/70"
+                            @click="saveMeasurementEdit(entry.date, entry.consumedPercent ?? 0)"
+                          >
+                            {{ t('history.measurementEdit.save') }}
+                          </button>
+                          <span
+                            v-else
+                            class="rounded-lg border border-slate-700/70 bg-slate-950/60 px-2.5 py-1.5 text-[11px] text-slate-400"
+                          >
+                            {{ t('history.measurementEdit.saved') }}
+                          </span>
+                        </div>
+                        <p
+                          v-if="measurementEditErrors[entry.date]"
+                          class="text-xs text-rose-200"
+                        >
+                          {{ measurementEditErrors[entry.date] }}
+                        </p>
+                      </div>
                     </div>
                     <span class="rounded-md border border-slate-700/70 bg-slate-950/75 px-2 py-1 font-mono text-[10px] text-slate-400">
                       {{ entry.date }}
@@ -135,12 +242,12 @@
                   <p class="mt-1 text-xs text-violet-200/70">{{ t('history.section.futureHint') }}</p>
                 </div>
                 <span class="rounded-md border border-violet-400/40 bg-slate-950/70 px-2 py-1 font-mono text-[10px] text-violet-100">
-                  {{ futureVisibleEntries.length }}
+                  {{ futureVisiblePlanningDays.length }}
                 </span>
               </div>
 
               <div
-                v-if="futureVisibleEntries.length === 0"
+                v-if="futureVisiblePlanningDays.length === 0"
                 class="rounded-xl border border-violet-500/30 bg-slate-900/35 px-4 py-5 text-sm text-slate-300"
               >
                 {{ futureEmptyLabel }}
@@ -148,27 +255,35 @@
 
               <ul v-else class="space-y-3">
                 <li
-                  v-for="entry in futureVisibleEntries"
-                  :key="`${entry.kind}-${entry.date}`"
+                  v-for="day in futureVisiblePlanningDays"
+                  :key="day.date"
                   class="rounded-xl border p-4"
-                  :class="entryContainerClassByKind[entry.kind]"
+                  :class="planningCardClassByState[day.state]"
                 >
                   <div class="flex items-start justify-between gap-3">
                     <div class="min-w-0 space-y-2">
                       <div class="flex flex-wrap items-center gap-2">
+                        <span class="text-sm font-semibold text-slate-100">{{ toShortDateLabel(day.date) }}</span>
                         <span
                           class="rounded-md border px-2 py-1 text-[10px] font-medium uppercase tracking-[0.12em]"
-                          :class="entryBadgeClassByKind[entry.kind]"
+                          :class="planningStateBadgeClassByState[day.state]"
                         >
-                          {{ entry.label }}
+                          {{ day.state === 'on' ? t('history.planning.state.on') : t('history.planning.state.off') }}
                         </span>
-                        <span class="text-sm font-semibold text-slate-100">{{ toShortDateLabel(entry.date) }}</span>
                       </div>
-                      <p class="text-sm text-slate-200">{{ entry.detail }}</p>
+                      <p class="text-xs text-slate-400">{{ day.date }}</p>
                     </div>
-                    <span class="rounded-md border border-violet-400/40 bg-slate-950/75 px-2 py-1 font-mono text-[10px] text-violet-100">
-                      {{ entry.date }}
-                    </span>
+
+                    <button
+                      type="button"
+                      class="rounded-lg border px-2.5 py-1.5 text-xs font-medium transition"
+                      :class="day.state === 'on'
+                        ? 'border-rose-300/60 bg-rose-500/15 text-rose-100 hover:border-rose-200/70'
+                        : 'border-cyan-300/60 bg-cyan-500/15 text-cyan-100 hover:border-cyan-200/70'"
+                      @click="toggleFutureDay(day.date)"
+                    >
+                      {{ day.state === 'on' ? t('history.planning.action.turnOff') : t('history.planning.action.turnOn') }}
+                    </button>
                   </div>
                 </li>
               </ul>
@@ -189,32 +304,36 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, reactive, ref } from 'vue';
 import PageHeader from '@/components/PageHeader.vue';
 import ProjectFooter from '@/components/ProjectFooter.vue';
 import SettingsModal from '@/components/SettingsModal.vue';
 import { useI18n } from '@/composables/useI18n';
+import { useTokenTrackerState } from '@/composables/useTokenTrackerState';
+import { estimateConsumedPercentForDate, findNeighborMeasurements } from '@/domain/usage-history';
 import { useUiLanguage } from '@/composables/useUiLanguage';
-import { initialCycle, initialPlanning, initialUsageHistory } from '@/mocks/initial-data';
-import { loadPersistedState } from '@/services/persistence';
 import { appLanguageDescriptorByValue } from '@/types/app-settings';
-import type { DayNotesMap, ISODateString, PlanningMap, UsageHistoryMap } from '@/types/token-tracker';
+import type { ISODateString } from '@/types/token-tracker';
 import { addDays, eachDayInclusive, isBefore, isBetweenInclusive, todayIsoDate, toShortDateLabel } from '@/utils/date';
 import { formatPercent } from '@/utils/format';
 
-type HistoryEntryKind = 'measurement' | 'note' | 'future-on';
-type HistoryFilter = 'all' | HistoryEntryKind;
+type HistoryEntryKind = 'measurement' | 'note';
+type HistoryFilter = 'all' | HistoryEntryKind | 'planning';
+type PlanningState = 'on' | 'off';
 
 interface HistoryEntry {
   date: ISODateString;
   kind: HistoryEntryKind;
   label: string;
   detail: string;
+  consumedPercent?: number;
+  isEstimated?: boolean;
 }
 
 interface MeasurementRecord {
   date: ISODateString;
   consumedPercent: number;
+  isEstimated: boolean;
 }
 
 interface NoteRecord {
@@ -222,8 +341,9 @@ interface NoteRecord {
   note: string;
 }
 
-interface FutureOnRecord {
+interface FuturePlanningRecord {
   date: ISODateString;
+  state: PlanningState;
 }
 
 const emit = defineEmits<{
@@ -235,32 +355,42 @@ const { language, setLanguage } = useUiLanguage();
 const languageLabel = computed(() => t(appLanguageDescriptorByValue[language.value].badgeLabelKey));
 const isSettingsOpen = ref(false);
 const activeFilter = ref<HistoryFilter>('all');
+const showEstimatedMeasurements = ref(false);
+const measurementDrafts = reactive<Partial<Record<ISODateString, string>>>({});
+const measurementEditErrors = reactive<Partial<Record<ISODateString, string>>>({});
+
+const {
+  cycle,
+  formState,
+  dayNoteMaxLength,
+  validationErrors,
+  usageHistory,
+  dayNotes,
+  planning,
+  updateMeasurementDateInput,
+  updateDayNoteInput,
+  toggleFutureDay
+} = useTokenTrackerState();
 
 function resolveReferenceDate(): ISODateString {
   const today = todayIsoDate();
 
-  if (isBefore(today, initialCycle.cycleStart)) {
-    return initialCycle.cycleStart;
+  if (isBefore(today, cycle.cycleStart)) {
+    return cycle.cycleStart;
   }
 
-  if (isBefore(initialCycle.resetDate, today)) {
-    return initialCycle.resetDate;
+  if (isBefore(cycle.resetDate, today)) {
+    return cycle.resetDate;
   }
 
   return today;
 }
 
 const referenceDate = resolveReferenceDate();
-const restored = loadPersistedState(initialCycle);
 
-const usageHistory: UsageHistoryMap = restored?.usageHistory
-  ? { ...restored.usageHistory }
-  : { ...initialUsageHistory };
-const planning: PlanningMap = restored?.planning ? { ...restored.planning } : { ...initialPlanning };
-const dayNotes: DayNotesMap = restored?.dayNotes ? { ...restored.dayNotes } : {};
-
-function sortByDateAsc<T extends { date: ISODateString }>(entries: T[]): T[] {
-  return [...entries].sort((a, b) => a.date.localeCompare(b.date));
+function toDisplayPercent(value: number): string {
+  const rounded = Math.round(value * 10) / 10;
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
 }
 
 function toNotePreview(note: string): string {
@@ -274,25 +404,110 @@ function toNotePreview(note: string): string {
   return `${normalized.slice(0, maxLength - 3)}...`;
 }
 
+function getMeasurementDraft(date: ISODateString, currentValue: number): string {
+  return measurementDrafts[date] ?? toDisplayPercent(currentValue);
+}
+
+function isMeasurementDraftDirty(date: ISODateString, currentValue: number): boolean {
+  const normalizedCurrent = toDisplayPercent(currentValue);
+  const normalizedDraft = getMeasurementDraft(date, currentValue).trim().replace(',', '.');
+
+  if (normalizedDraft.length === 0) {
+    return true;
+  }
+
+  return normalizedDraft !== normalizedCurrent;
+}
+
+function onMeasurementDraftInput(date: ISODateString, event: Event) {
+  const target = event.target as HTMLInputElement;
+  measurementDrafts[date] = target.value;
+  measurementEditErrors[date] = '';
+}
+
+function onMeasurementDraftBlur(date: ISODateString, currentValue: number) {
+  if (!isMeasurementDraftDirty(date, currentValue)) {
+    return;
+  }
+
+  saveMeasurementEdit(date, currentValue);
+}
+
+function onMeasurementDraftEnter(date: ISODateString, currentValue: number) {
+  saveMeasurementEdit(date, currentValue);
+}
+
+function saveMeasurementEdit(date: ISODateString, currentValue: number) {
+  if (!isMeasurementDraftDirty(date, currentValue)) {
+    measurementEditErrors[date] = '';
+    measurementDrafts[date] = toDisplayPercent(currentValue);
+    return;
+  }
+
+  const rawValue = getMeasurementDraft(date, currentValue).trim().replace(',', '.');
+
+  if (rawValue.length === 0) {
+    measurementEditErrors[date] = t('validation.consumed.required');
+    return;
+  }
+
+  const parsed = Number(rawValue);
+
+  if (!Number.isFinite(parsed)) {
+    measurementEditErrors[date] = t('validation.consumed.invalid');
+    return;
+  }
+
+  if (parsed < 0 || parsed > cycle.quotaPercent) {
+    measurementEditErrors[date] = t('validation.consumed.outOfRange', {
+      max: cycle.quotaPercent
+    });
+    return;
+  }
+
+  const neighbors = findNeighborMeasurements(date, usageHistory, cycle);
+
+  if (neighbors.previous && parsed < neighbors.previous.consumedPercent) {
+    measurementEditErrors[date] = t('validation.consumed.lowerThanPrevious', {
+      value: toDisplayPercent(neighbors.previous.consumedPercent),
+      date: toShortDateLabel(neighbors.previous.date)
+    });
+    return;
+  }
+
+  if (neighbors.next && parsed > neighbors.next.consumedPercent) {
+    measurementEditErrors[date] = t('validation.consumed.higherThanNext', {
+      value: toDisplayPercent(neighbors.next.consumedPercent),
+      date: toShortDateLabel(neighbors.next.date)
+    });
+    return;
+  }
+
+  usageHistory[date] = parsed;
+  measurementDrafts[date] = toDisplayPercent(parsed);
+  measurementEditErrors[date] = '';
+}
+
 const measurementRecords = computed<MeasurementRecord[]>(() => {
-  return (Object.entries(usageHistory) as Array<[ISODateString, number]>)
-    .filter(([date, consumedPercent]) => (
-      typeof consumedPercent === 'number' &&
-      isBetweenInclusive(date, initialCycle.cycleStart, referenceDate)
-    ))
-    .map(([date, consumedPercent]) => ({
+  return eachDayInclusive(cycle.cycleStart, referenceDate)
+    .map((date) => ({
       date,
-      consumedPercent
+      consumedPercent: estimateConsumedPercentForDate(date, usageHistory, cycle),
+      isEstimated: !Number.isFinite(usageHistory[date])
     }))
     .sort((a, b) => b.date.localeCompare(a.date));
 });
+
+const manualMeasurementRecords = computed(() =>
+  measurementRecords.value.filter((record) => !record.isEstimated)
+);
 
 const noteRecords = computed<NoteRecord[]>(() => {
   return (Object.entries(dayNotes) as Array<[ISODateString, string]>)
     .filter(([date, note]) => (
       typeof note === 'string' &&
       note.trim().length > 0 &&
-      isBetweenInclusive(date, initialCycle.cycleStart, referenceDate)
+      isBetweenInclusive(date, cycle.cycleStart, referenceDate)
     ))
     .map(([date, note]) => ({
       date,
@@ -301,16 +516,20 @@ const noteRecords = computed<NoteRecord[]>(() => {
     .sort((a, b) => b.date.localeCompare(a.date));
 });
 
-const futureOnRecords = computed<FutureOnRecord[]>(() => {
-  const futureDates = eachDayInclusive(addDays(referenceDate, 1), initialCycle.resetDate);
+const futurePlanningRecords = computed<FuturePlanningRecord[]>(() => {
+  const futureDates = eachDayInclusive(addDays(referenceDate, 1), cycle.resetDate);
 
-  return futureDates
-    .filter((date) => planning[date] === 'on')
-    .map((date) => ({ date }))
-    .sort((a, b) => a.date.localeCompare(b.date));
+  return futureDates.map((date) => ({
+    date,
+    state: planning[date] === 'on' ? 'on' : 'off'
+  }));
 });
 
-const latestMeasurement = computed(() => measurementRecords.value[0] ?? null);
+const futureOnRecords = computed(() =>
+  futurePlanningRecords.value.filter((record) => record.state === 'on')
+);
+
+const latestMeasurement = computed(() => manualMeasurementRecords.value[0] ?? null);
 const latestNote = computed(() => noteRecords.value[0] ?? null);
 const nextFutureOn = computed(() => futureOnRecords.value[0] ?? null);
 
@@ -319,6 +538,8 @@ const measurementEntries = computed<HistoryEntry[]>(() => (
     date: record.date,
     kind: 'measurement',
     label: t('history.entry.measurement'),
+    consumedPercent: record.consumedPercent,
+    isEstimated: record.isEstimated,
     detail: t('history.entry.measuredDetail', {
       value: `${formatPercent(record.consumedPercent)}%`
     })
@@ -336,41 +557,23 @@ const noteEntries = computed<HistoryEntry[]>(() => (
   }))
 ));
 
-const futureOnEntries = computed<HistoryEntry[]>(() => (
-  futureOnRecords.value.map((record) => ({
-    date: record.date,
-    kind: 'future-on',
-    label: t('history.entry.plannedOn'),
-    detail: t('history.entry.plannedOnDetail')
-  }))
-));
-
-const entryOrderByKind: Record<Exclude<HistoryFilter, 'all'>, number> = {
-  measurement: 0,
-  note: 1,
-  'future-on': 2
-};
-
 const historicalEntries = computed(() =>
   [...measurementEntries.value, ...noteEntries.value]
-    .sort((a, b) => {
-      const byDate = b.date.localeCompare(a.date);
-      return byDate !== 0 ? byDate : entryOrderByKind[a.kind] - entryOrderByKind[b.kind];
-    })
+    .sort((a, b) => b.date.localeCompare(a.date))
 );
-
-const futureEntries = computed(() => sortByDateAsc(futureOnEntries.value));
 
 const filterOptions = computed<Array<{ id: HistoryFilter; label: string; count: number }>>(() => [
   {
     id: 'all',
     label: t('history.filters.all'),
-    count: historicalEntries.value.length + futureEntries.value.length
+    count: historicalVisibleEntries.value.length + futurePlanningRecords.value.length
   },
   {
     id: 'measurement',
     label: t('history.filters.measurement'),
-    count: measurementEntries.value.length
+    count: showEstimatedMeasurements.value
+      ? measurementEntries.value.length
+      : manualMeasurementRecords.value.length
   },
   {
     id: 'note',
@@ -378,62 +581,94 @@ const filterOptions = computed<Array<{ id: HistoryFilter; label: string; count: 
     count: noteEntries.value.length
   },
   {
-    id: 'future-on',
-    label: t('history.filters.futureOn'),
-    count: futureEntries.value.length
+    id: 'planning',
+    label: t('history.filters.planning'),
+    count: futurePlanningRecords.value.length
   }
 ]);
 
 const historicalVisibleEntries = computed(() => {
-  if (activeFilter.value === 'future-on') {
-    return [];
+  const filteredByType =
+    activeFilter.value === 'planning'
+      ? []
+      : activeFilter.value === 'all'
+        ? historicalEntries.value
+        : historicalEntries.value.filter((entry) => entry.kind === activeFilter.value);
+
+  if (showEstimatedMeasurements.value) {
+    return filteredByType;
   }
 
-  if (activeFilter.value === 'all') {
-    return historicalEntries.value;
-  }
-
-  return historicalEntries.value.filter((entry) => entry.kind === activeFilter.value);
+  return filteredByType.filter((entry) => !(entry.kind === 'measurement' && entry.isEstimated));
 });
 
-const futureVisibleEntries = computed(() => {
-  if (activeFilter.value !== 'all' && activeFilter.value !== 'future-on') {
+const futureVisiblePlanningDays = computed(() => {
+  if (activeFilter.value !== 'all' && activeFilter.value !== 'planning') {
     return [];
   }
 
-  return futureEntries.value;
+  return futurePlanningRecords.value;
 });
 
 const historicalEmptyLabel = computed(() =>
-  activeFilter.value === 'future-on'
+  activeFilter.value === 'planning'
     ? t('history.emptyFiltered')
     : t('history.emptyHistorical')
 );
 
 const futureEmptyLabel = computed(() =>
-  activeFilter.value !== 'all' && activeFilter.value !== 'future-on'
-    ? t('history.emptyFiltered')
-    : t('history.emptyFuture')
+  activeFilter.value === 'all' || activeFilter.value === 'planning'
+    ? t('history.emptyFuture')
+    : t('history.emptyFiltered')
 );
 
 const entryContainerClassByKind: Record<HistoryEntryKind, string> = {
   measurement: 'border-cyan-300/50 bg-cyan-500/10',
-  note: 'border-amber-300/50 bg-amber-500/10',
-  'future-on': 'history-future-entry border-violet-300/50 bg-violet-600/15'
+  note: 'border-amber-300/50 bg-amber-500/10'
 };
 
 const entryBadgeClassByKind: Record<HistoryEntryKind, string> = {
   measurement: 'border-cyan-200/50 bg-cyan-500/20 text-cyan-100',
-  note: 'border-amber-200/50 bg-amber-500/20 text-amber-100',
-  'future-on': 'border-violet-200/50 bg-violet-500/25 text-violet-100'
+  note: 'border-amber-200/50 bg-amber-500/20 text-amber-100'
+};
+
+const planningCardClassByState: Record<PlanningState, string> = {
+  on: 'history-future-on border-violet-300/50 bg-violet-600/15',
+  off: 'border-slate-600/70 bg-slate-900/45'
+};
+
+const planningStateBadgeClassByState: Record<PlanningState, string> = {
+  on: 'border-violet-200/50 bg-violet-500/25 text-violet-100',
+  off: 'border-slate-500/70 bg-slate-700/60 text-slate-200'
 };
 </script>
 
 <style scoped>
-.history-future-entry {
+.history-future-on {
   background-image: repeating-linear-gradient(
     -45deg,
     rgba(167, 139, 250, 0.2) 0 2px,
+    transparent 2px 8px
+  );
+}
+
+.history-estimated-entry {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(148, 163, 184, 0.18) 0 2px,
+    transparent 2px 8px
+  );
+}
+
+.history-estimated-muted {
+  opacity: 0.74;
+}
+
+.history-estimated-badge {
+  border-color: rgba(148, 163, 184, 0.55);
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(148, 163, 184, 0.26) 0 2px,
     transparent 2px 8px
   );
 }

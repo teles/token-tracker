@@ -1,7 +1,15 @@
 import { nextTick } from 'vue';
 import { useTokenTrackerState } from '@/composables/useTokenTrackerState';
 import { TOKEN_TRACKER_STORAGE_KEY } from '@/services/persistence';
-import { addDays, diffDays, isWeekend, startOfMonth, todayIsoDate } from '@/utils/date';
+import {
+  addDays,
+  diffDays,
+  eachDayInclusive,
+  isBefore,
+  isWeekend,
+  startOfMonth,
+  todayIsoDate
+} from '@/utils/date';
 
 class MemoryStorage implements Storage {
   private map = new Map<string, string>();
@@ -45,6 +53,21 @@ describe('useTokenTrackerState', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  it('uses expected average consumed value until previous day on first load', () => {
+    const state = useTokenTrackerState();
+    const previousDay = addDays(state.snapshot.measurementDate, -1);
+    const cycleDays = eachDayInclusive(state.cycle.cycleStart, state.cycle.resetDate);
+    const expectedUsageDays = cycleDays.filter((date) => !isWeekend(date));
+    const elapsedUsageDays = expectedUsageDays.filter((date) => !isBefore(previousDay, date));
+
+    const expectedPercent =
+      expectedUsageDays.length === 0
+        ? 0
+        : Math.round((elapsedUsageDays.length / expectedUsageDays.length) * state.cycle.quotaPercent * 10) / 10;
+
+    expect(state.snapshot.consumedPercent).toBe(expectedPercent);
   });
 
   it('validates invalid input without mutating snapshot', () => {
