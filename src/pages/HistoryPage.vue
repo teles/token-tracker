@@ -6,7 +6,7 @@
           :language-label="languageLabel"
           current-page="history"
           title-key="history.title"
-          @open-settings="isSettingsOpen = true"
+          @open-settings="openSettings"
           @navigate="emit('navigate', $event)"
         />
 
@@ -54,6 +54,44 @@
               </p>
             </article>
           </div>
+        </section>
+
+        <section class="panel-surface p-5 sm:p-6">
+          <div class="mb-3 flex items-start justify-between gap-3">
+            <p class="panel-title">{{ t('history.cycleArchive.title') }}</p>
+            <span class="rounded-md border border-slate-700/70 bg-slate-950/70 px-2 py-1 font-mono text-[10px] text-slate-400">
+              {{ closedCycleSummaries.length }}
+            </span>
+          </div>
+
+          <div
+            v-if="closedCycleSummaries.length === 0"
+            class="rounded-xl border border-slate-700/60 bg-slate-900/35 px-4 py-5 text-sm text-slate-400"
+          >
+            {{ t('history.cycleArchive.empty') }}
+          </div>
+
+          <ul v-else class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <li
+              v-for="closedCycle in closedCycleSummaries"
+              :key="closedCycle.id"
+              class="rounded-xl border border-slate-700/60 bg-slate-900/45 p-4"
+            >
+              <div class="flex items-start justify-between gap-2">
+                <p class="text-sm font-semibold text-slate-100">{{ closedCycle.rangeLabel }}</p>
+                <span class="rounded-md border border-slate-600/70 bg-slate-950/70 px-2 py-0.5 text-[10px] text-slate-300">
+                  {{ closedCycle.cadenceLabel }}
+                </span>
+              </div>
+
+              <p class="mt-2 text-xs text-slate-400">{{ t('history.cycleArchive.lastMeasurement') }}</p>
+              <p class="mt-1 text-sm text-slate-100">{{ closedCycle.lastMeasurementLabel }}</p>
+              <p class="mt-2 text-xs text-slate-500">
+                {{ t('history.cycleArchive.notes', { count: closedCycle.notesCount }) }} ·
+                {{ t('history.cycleArchive.plannedOn', { count: closedCycle.plannedOnCount }) }}
+              </p>
+            </li>
+          </ul>
         </section>
 
         <section class="panel-surface p-5 sm:p-6">
@@ -295,8 +333,16 @@
     <SettingsModal
       :open="isSettingsOpen"
       :language="language"
+      :accounts="settingsAccounts"
+      :active-account-id="activeAccount.id"
+      :account-feedback="settingsAccountFeedback"
+      :data-feedback="settingsDataFeedback"
       @close="isSettingsOpen = false"
       @update:language="setLanguage($event)"
+      @switch-account="handleSwitchAccount"
+      @export-data="handleExportData"
+      @import-data="handleImportData"
+      @reset-cycle="handleResetCycle"
     />
   </main>
 </template>
@@ -309,11 +355,21 @@ import SettingsModal from '@/components/SettingsModal.vue';
 import { useI18n } from '@/composables/useI18n';
 import { useTokenTrackerState } from '@/composables/useTokenTrackerState';
 import { estimateConsumedPercentForDate, findNeighborMeasurements } from '@/domain/usage-history';
+import {
+  buildDataExportFileName,
+  serializeDataExportPayload
+} from '@/services/data-transfer';
 import { useUiLanguage } from '@/composables/useUiLanguage';
 import { appLanguageDescriptorByValue } from '@/types/app-settings';
-import type { ISODateString } from '@/types/token-tracker';
+import type {
+  ISODateString,
+  TrackerAccountProvider,
+  TrackerCycleCadence,
+  TrackerCycleRecord
+} from '@/types/token-tracker';
 import { addDays, eachDayInclusive, isBefore, isBetweenInclusive, todayIsoDate, toShortDateLabel } from '@/utils/date';
 import { formatPercent } from '@/utils/format';
+import type { ImportDataErrorCode } from '@/services/data-transfer';
 
 type HistoryEntryKind = 'measurement' | 'note';
 type HistoryFilter = 'all' | HistoryEntryKind | 'planning';
@@ -344,14 +400,30 @@ interface FuturePlanningRecord {
   state: PlanningState;
 }
 
+interface ClosedCycleSummary {
+  id: string;
+  rangeLabel: string;
+  cadenceLabel: string;
+  lastMeasurementLabel: string;
+  notesCount: number;
+  plannedOnCount: number;
+}
+
+type SettingsFeedback = {
+  tone: 'success' | 'error';
+  message: string;
+};
+
 const emit = defineEmits<{
-  (event: 'navigate', page: 'tracker' | 'history'): void;
+  (event: 'navigate', page: 'tracker' | 'history' | 'accounts'): void;
 }>();
 
 const { t } = useI18n();
 const { language, setLanguage } = useUiLanguage();
 const languageLabel = computed(() => t(appLanguageDescriptorByValue[language.value].badgeLabelKey));
 const isSettingsOpen = ref(false);
+const settingsAccountFeedback = ref<SettingsFeedback | null>(null);
+const settingsDataFeedback = ref<SettingsFeedback | null>(null);
 const activeFilter = ref<HistoryFilter>('all');
 const showEstimatedMeasurements = ref(false);
 const measurementDrafts = reactive<Partial<Record<ISODateString, string>>>({});
@@ -359,6 +431,9 @@ const measurementEditErrors = reactive<Partial<Record<ISODateString, string>>>({
 
 const {
   cycle,
+  activeAccount,
+  accountSummaries,
+  closedCycles,
   formState,
   dayNoteMaxLength,
   validationErrors,
@@ -367,7 +442,11 @@ const {
   planning,
   updateMeasurementDateInput,
   updateDayNoteInput,
-  toggleFutureDay
+  toggleFutureDay,
+  switchActiveAccount,
+  getExportPayload,
+  importFromSerializedData,
+  resetCycleData
 } = useTokenTrackerState();
 
 function resolveReferenceDate(): ISODateString {
@@ -384,7 +463,16 @@ function resolveReferenceDate(): ISODateString {
   return today;
 }
 
-const referenceDate = resolveReferenceDate();
+const referenceDate = computed(() => resolveReferenceDate());
+const settingsAccounts = computed(() =>
+  accountSummaries.map((account) => ({
+    id: account.id,
+    name: account.name,
+    providerLabel: toProviderLabel(account.provider),
+    cadenceLabel: toCadenceLabel(account.cadence),
+    activeCycleLabel: `${account.activeCycleStart} -> ${account.activeCycleEnd}`
+  }))
+);
 
 function toDisplayPercent(value: number): string {
   const rounded = Math.round(value * 10) / 10;
@@ -486,8 +574,150 @@ function saveMeasurementEdit(date: ISODateString, currentValue: number) {
   measurementEditErrors[date] = '';
 }
 
+function clearMeasurementDraftState() {
+  for (const date of Object.keys(measurementDrafts) as ISODateString[]) {
+    delete measurementDrafts[date];
+  }
+
+  for (const date of Object.keys(measurementEditErrors) as ISODateString[]) {
+    delete measurementEditErrors[date];
+  }
+}
+
+function openSettings() {
+  settingsAccountFeedback.value = null;
+  settingsDataFeedback.value = null;
+  isSettingsOpen.value = true;
+}
+
+function toProviderLabel(provider: TrackerAccountProvider): string {
+  switch (provider) {
+    case 'copilot':
+      return t('settings.accounts.provider.copilot');
+    case 'claude':
+      return t('settings.accounts.provider.claude');
+    case 'codex':
+      return t('settings.accounts.provider.codex');
+    case 'custom':
+      return t('settings.accounts.provider.custom');
+  }
+}
+
+function toCadenceLabel(cadence: TrackerCycleCadence): string {
+  return cadence === 'weekly'
+    ? t('history.cycleArchive.cadence.weekly')
+    : t('history.cycleArchive.cadence.monthly');
+}
+
+function handleSwitchAccount(accountId: string) {
+  const switched = switchActiveAccount(accountId);
+
+  settingsAccountFeedback.value = {
+    tone: switched ? 'success' : 'error',
+    message: switched
+      ? t('settings.accounts.switchSuccess')
+      : t('settings.accounts.switchError')
+  };
+
+  if (switched) {
+    clearMeasurementDraftState();
+  }
+}
+
+function toImportErrorMessage(errorCode: ImportDataErrorCode): string {
+  switch (errorCode) {
+    case 'invalid-json':
+      return t('settings.data.importError.invalidJson');
+    case 'unsupported-schema':
+      return t('settings.data.importError.unsupportedSchema');
+    case 'invalid-payload':
+      return t('settings.data.importError.invalidPayload');
+    case 'cycle-mismatch':
+      return t('settings.data.importError.cycleMismatch');
+    case 'invalid-state':
+      return t('settings.data.importError.invalidState');
+    default:
+      return t('settings.data.importError.invalidPayload');
+  }
+}
+
+function handleExportData() {
+  if (typeof document === 'undefined' || typeof URL === 'undefined' || typeof Blob === 'undefined') {
+    settingsDataFeedback.value = {
+      tone: 'error',
+      message: t('settings.data.exportUnavailable')
+    };
+    return;
+  }
+
+  const payload = getExportPayload(language.value);
+  const serializedPayload = serializeDataExportPayload(payload);
+  const fileName = buildDataExportFileName(payload.cycle);
+  const blob = new Blob([serializedPayload], { type: 'application/json;charset=utf-8' });
+  const exportUrl = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+
+  link.href = exportUrl;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+
+  URL.revokeObjectURL(exportUrl);
+
+  settingsDataFeedback.value = {
+    tone: 'success',
+    message: t('settings.data.exportSuccess')
+  };
+}
+
+async function handleImportData(file: File) {
+  try {
+    const raw = await file.text();
+    const importResult = importFromSerializedData(raw);
+
+    if (!importResult.ok) {
+      settingsDataFeedback.value = {
+        tone: 'error',
+        message: toImportErrorMessage(importResult.errorCode)
+      };
+      return;
+    }
+
+    clearMeasurementDraftState();
+
+    if (importResult.importedLanguage) {
+      setLanguage(importResult.importedLanguage);
+    }
+
+    settingsDataFeedback.value = {
+      tone: 'success',
+      message: t('settings.data.importSuccess')
+    };
+  } catch {
+    settingsDataFeedback.value = {
+      tone: 'error',
+      message: t('settings.data.importError.read')
+    };
+  }
+}
+
+function handleResetCycle() {
+  if (typeof window !== 'undefined' && !window.confirm(t('settings.data.resetConfirm'))) {
+    return;
+  }
+
+  resetCycleData();
+  clearMeasurementDraftState();
+
+  settingsDataFeedback.value = {
+    tone: 'success',
+    message: t('settings.data.resetSuccess')
+  };
+}
+
 const measurementRecords = computed<MeasurementRecord[]>(() => {
-  return eachDayInclusive(cycle.cycleStart, referenceDate)
+  return eachDayInclusive(cycle.cycleStart, referenceDate.value)
     .map((date) => ({
       date,
       consumedPercent: estimateConsumedPercentForDate(date, usageHistory, cycle),
@@ -505,7 +735,7 @@ const noteRecords = computed<NoteRecord[]>(() => {
     .filter(([date, note]) => (
       typeof note === 'string' &&
       note.trim().length > 0 &&
-      isBetweenInclusive(date, cycle.cycleStart, referenceDate)
+      isBetweenInclusive(date, cycle.cycleStart, referenceDate.value)
     ))
     .map(([date, note]) => ({
       date,
@@ -515,13 +745,40 @@ const noteRecords = computed<NoteRecord[]>(() => {
 });
 
 const futurePlanningRecords = computed<FuturePlanningRecord[]>(() => {
-  const futureDates = eachDayInclusive(addDays(referenceDate, 1), cycle.resetDate);
+  const futureDates = eachDayInclusive(addDays(referenceDate.value, 1), cycle.resetDate);
 
   return futureDates.map((date) => ({
     date,
     state: planning[date] === 'on' ? 'on' : 'off'
   }));
 });
+
+function buildClosedCycleSummary(cycleRecord: TrackerCycleRecord): ClosedCycleSummary {
+  const measurementEntries = Object.entries(cycleRecord.state.usageHistory)
+    .filter(([, value]) => Number.isFinite(value))
+    .sort(([a], [b]) => b.localeCompare(a));
+  const latestMeasurementEntry = measurementEntries[0];
+  const latestMeasurementLabel = latestMeasurementEntry
+    ? `${latestMeasurementEntry[0]} · ${formatPercent(Number(latestMeasurementEntry[1]))}`
+    : t('history.cycleArchive.none');
+  const notesCount = Object.keys(cycleRecord.state.dayNotes ?? {}).length;
+  const plannedOnCount = Object.keys(cycleRecord.state.planning ?? {}).length;
+
+  return {
+    id: cycleRecord.id,
+    rangeLabel: `${cycleRecord.cycleStart} -> ${cycleRecord.resetDate}`,
+    cadenceLabel: toCadenceLabel(cycleRecord.cadence),
+    lastMeasurementLabel: latestMeasurementLabel,
+    notesCount,
+    plannedOnCount
+  };
+}
+
+const closedCycleSummaries = computed(() =>
+  closedCycles.value
+    .map(buildClosedCycleSummary)
+    .sort((a, b) => b.rangeLabel.localeCompare(a.rangeLabel))
+);
 
 const futureOnRecords = computed(() =>
   futurePlanningRecords.value.filter((record) => record.state === 'on')

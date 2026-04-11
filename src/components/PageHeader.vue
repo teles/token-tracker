@@ -83,7 +83,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from '@/composables/useI18n';
 
-type AppPage = 'tracker' | 'history';
+type AppPage = 'tracker' | 'history' | 'accounts';
 
 const props = defineProps<{
   languageLabel: string;
@@ -101,7 +101,8 @@ const isSidebarOpen = ref(false);
 
 const menuItems = computed<Array<{ page: AppPage; label: string }>>(() => [
   { page: 'tracker', label: t('navigation.tracker') },
-  { page: 'history', label: t('navigation.history') }
+  { page: 'history', label: t('navigation.history') },
+  { page: 'accounts', label: t('navigation.accounts') }
 ]);
 
 function closeSidebar() {

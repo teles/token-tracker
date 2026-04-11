@@ -5,6 +5,7 @@ import type {
   DayNotesMap,
   ISODateString,
   PlanningMap,
+  TrackerCycleState,
   UsageHistoryMap,
   UsageSnapshot
 } from '@/types/token-tracker';
@@ -12,12 +13,7 @@ import { isBetweenInclusive, isBefore, todayIsoDate } from '@/utils/date';
 
 const STORAGE_KEY = 'token-tracker:state:v2';
 
-type PersistedStateV2 = {
-  activeMeasurementDate: ISODateString;
-  usageHistory: UsageHistoryMap;
-  planning: PlanningMap;
-  dayNotes?: DayNotesMap;
-};
+export type PersistedStateV2 = TrackerCycleState;
 
 type PersistedStateV1 = {
   snapshot: UsageSnapshot;
@@ -117,6 +113,46 @@ function migrateV1State(raw: unknown): PersistedStateV2 | null {
   };
 }
 
+function normalizePersistedState(raw: unknown): PersistedStateV2 | null {
+  if (!raw || typeof raw !== 'object') {
+    return null;
+  }
+
+  if ('activeMeasurementDate' in (raw as PersistedStateV2)) {
+    return raw as PersistedStateV2;
+  }
+
+  return migrateV1State(raw);
+}
+
+export function sanitizePersistedState(raw: unknown, cycle: CycleInfo): PersistedStateV2 | null {
+  const normalized = normalizePersistedState(raw);
+
+  if (!normalized) {
+    return null;
+  }
+
+  if (!isValidIsoDate(normalized.activeMeasurementDate)) {
+    return null;
+  }
+
+  const activeMeasurementDate = sanitizeActiveMeasurementDate(
+    normalized.activeMeasurementDate,
+    cycle
+  );
+
+  if (!activeMeasurementDate) {
+    return null;
+  }
+
+  return {
+    activeMeasurementDate,
+    usageHistory: sanitizeUsageHistory(normalized.usageHistory ?? {}, cycle),
+    planning: sanitizePlanning(normalized.planning ?? {}, cycle),
+    dayNotes: sanitizeDayNotes(normalized.dayNotes ?? {}, cycle)
+  };
+}
+
 export function loadPersistedState(cycle: CycleInfo): PersistedStateV2 | null {
   const storage = getStorage();
 
@@ -134,35 +170,7 @@ export function loadPersistedState(cycle: CycleInfo): PersistedStateV2 | null {
 
   try {
     const parsed = JSON.parse(raw) as PersistedStateV2 | PersistedStateV1;
-
-    const normalized: PersistedStateV2 | null =
-      'activeMeasurementDate' in (parsed as PersistedStateV2)
-        ? (parsed as PersistedStateV2)
-        : migrateV1State(parsed);
-
-    if (!normalized) {
-      return null;
-    }
-
-    if (!isValidIsoDate(normalized.activeMeasurementDate)) {
-      return null;
-    }
-
-    const activeMeasurementDate = sanitizeActiveMeasurementDate(
-      normalized.activeMeasurementDate,
-      cycle
-    );
-
-    if (!activeMeasurementDate) {
-      return null;
-    }
-
-    return {
-      activeMeasurementDate,
-      usageHistory: sanitizeUsageHistory(normalized.usageHistory ?? {}, cycle),
-      planning: sanitizePlanning(normalized.planning ?? {}, cycle),
-      dayNotes: sanitizeDayNotes(normalized.dayNotes ?? {}, cycle)
-    };
+    return sanitizePersistedState(parsed, cycle);
   } catch {
     return null;
   }

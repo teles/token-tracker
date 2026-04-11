@@ -9,6 +9,7 @@ import type {
   UsageSnapshot
 } from '@/types/token-tracker';
 import {
+  diffDays,
   eachDayInclusive,
   endOfMonth,
   endOfWeekSunday,
@@ -40,21 +41,26 @@ function isCurrentMonth(
   return isBetweenInclusive(date, monthStart, monthEnd);
 }
 
+function isWeeklyCycle(cycle: CycleInfo): boolean {
+  return diffDays(cycle.cycleStart, cycle.resetDate) <= 6;
+}
+
 export function buildCalendarModel(input: BuildCalendarModelInput): CalendarDayModel[] {
   const { snapshot, measurementDate, cycle, planning, usageHistory } = input;
   const dayNotes = input.dayNotes ?? {};
   const today = input.today ?? todayIsoDate();
+  const weeklyCycle = isWeeklyCycle(cycle);
 
-  const monthStart = startOfMonth(snapshot.measurementDate);
-  const monthEnd = endOfMonth(snapshot.measurementDate);
+  const monthStart = weeklyCycle ? cycle.cycleStart : startOfMonth(snapshot.measurementDate);
+  const monthEnd = weeklyCycle ? cycle.resetDate : endOfMonth(snapshot.measurementDate);
 
-  const gridStart = startOfWeekMonday(monthStart);
-  const gridEnd = endOfWeekSunday(monthEnd);
+  const gridStart = weeklyCycle ? cycle.cycleStart : startOfWeekMonday(monthStart);
+  const gridEnd = weeklyCycle ? cycle.resetDate : endOfWeekSunday(monthEnd);
 
   const pastIntensities = generatePastHeatmapIntensities(snapshot, cycle, usageHistory);
 
   return eachDayInclusive(gridStart, gridEnd).map((date) => {
-    const inCurrentMonth = isCurrentMonth(date, monthStart, monthEnd);
+    const inCurrentMonth = weeklyCycle ? true : isCurrentMonth(date, monthStart, monthEnd);
     const inCycle = isBetweenInclusive(date, cycle.cycleStart, cycle.resetDate);
 
     const isPast = inCycle && isBefore(date, snapshot.measurementDate);

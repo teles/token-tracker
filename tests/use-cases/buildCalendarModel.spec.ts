@@ -57,4 +57,32 @@ describe('buildCalendarModel', () => {
     expect(day10?.hasNote).toBe(false);
     expect(day10?.hasEstimatedUsage).toBe(false);
   });
+
+  it('renders only cycle week for weekly accounts', () => {
+    const calendar = buildCalendarModel({
+      snapshot: {
+        measurementDate: '2026-04-09',
+        consumedPercent: 38
+      },
+      measurementDate: '2026-04-09',
+      cycle: {
+        cycleStart: '2026-04-06',
+        resetDate: '2026-04-12',
+        quotaPercent: 100
+      },
+      planning: {
+        '2026-04-10': 'on'
+      },
+      usageHistory: {
+        '2026-04-09': 38
+      },
+      today: '2026-04-09'
+    });
+
+    expect(calendar).toHaveLength(7);
+    expect(calendar[0]?.date).toBe('2026-04-06');
+    expect(calendar[6]?.date).toBe('2026-04-12');
+    expect(calendar.every((day) => day.isCurrentMonth)).toBe(true);
+    expect(calendar.every((day) => day.isInCycle)).toBe(true);
+  });
 });

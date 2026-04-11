@@ -1,5 +1,6 @@
 import { nextTick } from 'vue';
 import { useTokenTrackerState } from '@/composables/useTokenTrackerState';
+import { DATA_TRANSFER_SCHEMA_VERSION } from '@/services/data-transfer';
 import { TOKEN_TRACKER_STORAGE_KEY } from '@/services/persistence';
 import {
   addDays,
@@ -207,5 +208,89 @@ describe('useTokenTrackerState', () => {
     expect(state.snapshot.measurementDate).toBe(cycleStart);
     expect(state.snapshot.consumedPercent).toBe(19);
     expect(state.formState.dayNote).toBe('Primeiro dia do ciclo');
+  });
+
+  it('imports serialized backup data and applies state', () => {
+    const state = useTokenTrackerState();
+    const importedDate = state.cycle.cycleStart;
+    const importedPlanningDate = addDays(todayIsoDate(), 1);
+    const importedPayload = JSON.stringify({
+      schemaVersion: DATA_TRANSFER_SCHEMA_VERSION,
+      exportedAt: '2026-04-09T12:00:00.000Z',
+      cycle: state.cycle,
+      state: {
+        activeMeasurementDate: importedDate,
+        usageHistory: {
+          [importedDate]: 17.5
+        },
+        planning: {
+          [importedPlanningDate]: 'on'
+        },
+        dayNotes: {
+          [importedDate]: 'Importado'
+        }
+      },
+      uiSettings: {
+        language: 'pt-BR'
+      }
+    });
+
+    const importResult = state.importFromSerializedData(importedPayload);
+
+    expect(importResult.ok).toBe(true);
+
+    if (!importResult.ok) {
+      return;
+    }
+
+    expect(state.snapshot.measurementDate).toBe(importedDate);
+    expect(state.snapshot.consumedPercent).toBe(17.5);
+    expect(state.formState.dayNote).toBe('Importado');
+    expect(state.planning[importedPlanningDate]).toBe('on');
+    expect(importResult.importedLanguage).toBe('pt-BR');
+  });
+
+  it('resets cycle data to defaults', () => {
+    const state = useTokenTrackerState();
+    const cycleStart = state.cycle.cycleStart;
+    const today = todayIsoDate();
+
+    state.updateMeasurementDateInput(cycleStart);
+    state.updateConsumedPercentInput('42');
+    state.updateDayNoteInput('Nota temporária');
+    state.applyShortcut('clear');
+    state.toggleFutureDay(addDays(today, 1));
+
+    state.resetCycleData();
+
+    expect(state.snapshot.measurementDate).toBe(today);
+    expect(state.formState.dayNote).toBe('');
+    expect(state.dayNotes[cycleStart]).toBeUndefined();
+    expect(state.usageHistory[today]).toBe(state.snapshot.consumedPercent);
+  });
+
+  it('creates and switches between accounts', () => {
+    const state = useTokenTrackerState();
+
+    expect(state.activeAccount.id).toBe('account-default');
+
+    state.createAndSwitchAccount({
+      name: 'Codex Weekly',
+      provider: 'codex',
+      cadence: 'weekly'
+    });
+
+    expect(state.activeAccount.name).toBe('Codex Weekly');
+    expect(state.activeAccount.cadence).toBe('weekly');
+    expect(state.cycle.cycleStart).toBe('2026-04-06');
+    expect(state.cycle.resetDate).toBe('2026-04-12');
+    expect(state.accountSummaries.length).toBeGreaterThanOrEqual(2);
+
+    const switched = state.switchActiveAccount('account-default');
+
+    expect(switched).toBe(true);
+    expect(state.activeAccount.id).toBe('account-default');
+    expect(state.cycle.cycleStart).toBe('2026-04-01');
+    expect(state.cycle.resetDate).toBe('2026-04-30');
   });
 });

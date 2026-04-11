@@ -3,6 +3,9 @@ export type TemporalViewMode = 'heatmap' | 'chart';
 export const DAY_NOTE_MAX_LENGTH = 80;
 
 export type PlanningDayState = 'on' | 'off';
+export type TrackerCycleCadence = 'monthly' | 'weekly';
+export type TrackerAccountProvider = 'copilot' | 'claude' | 'codex' | 'custom';
+export type TrackerCycleStatus = 'active' | 'closed';
 
 export type SafetyStatus = 'safe' | 'attention' | 'risk';
 export type ProjectionStrategyId = 'linear' | 'seasonal-week-pattern';
@@ -21,6 +24,44 @@ export interface CycleInfo {
   cycleStart: ISODateString;
   resetDate: ISODateString;
   quotaPercent: number;
+}
+
+export interface TrackerAccount {
+  id: string;
+  name: string;
+  provider: TrackerAccountProvider;
+  cadence: TrackerCycleCadence;
+  quotaPercent: number;
+  activeCycleId: string;
+  cycleIds: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TrackerCycleState {
+  activeMeasurementDate: ISODateString;
+  usageHistory: UsageHistoryMap;
+  planning: PlanningMap;
+  dayNotes: DayNotesMap;
+}
+
+export interface TrackerCycleRecord {
+  id: string;
+  accountId: string;
+  cadence: TrackerCycleCadence;
+  cycleStart: ISODateString;
+  resetDate: ISODateString;
+  status: TrackerCycleStatus;
+  state: TrackerCycleState;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TrackerWorkspace {
+  schemaVersion: 1;
+  activeAccountId: string;
+  accounts: Record<string, TrackerAccount>;
+  cycles: Record<string, TrackerCycleRecord>;
 }
 
 export interface PlanningSummary {

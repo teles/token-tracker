@@ -6,12 +6,44 @@
     </div>
 
     <div class="grid gap-3 sm:grid-cols-2">
-      <StatCard
-        :title="overallStatusLabel"
-        :value="statusLabel"
-        :hint="statusHint"
-        :tone="summary.safetyStatus"
-      />
+      <StatCard :title="overallStatusLabel" :value="statusLabel" :hint="statusHint" :tone="summary.safetyStatus">
+        <template #leading>
+          <span
+            class="inline-flex h-11 w-11 items-center justify-center rounded-xl border"
+            :class="paceGauge.containerClass"
+            :title="paceGauge.title"
+            aria-hidden="true"
+          >
+            <svg viewBox="0 0 24 24" class="h-6 w-6">
+              <path
+                d="M4 14a8 8 0 0 1 16 0"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.2"
+                stroke-linecap="round"
+                :class="paceGauge.arcClass"
+              />
+              <path
+                d="M6.5 14a5.5 5.5 0 0 1 11 0"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.4"
+                stroke-linecap="round"
+                :class="paceGauge.trackClass"
+              />
+              <path
+                d="M12 14V8.7"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                :class="paceGauge.needleClass"
+                :style="{ transform: `rotate(${paceGauge.needleAngle}deg)`, transformOrigin: '12px 14px' }"
+              />
+              <circle cx="12" cy="14" r="1.5" fill="currentColor" :class="paceGauge.pivotClass" />
+            </svg>
+          </span>
+        </template>
+      </StatCard>
       <StatCard :title="estimatedExhaustionLabel" :value="exhaustionValue" :hint="projectionHint" :tone="projectionTone" />
     </div>
 
@@ -124,6 +156,81 @@ const projectionToneByStatus: Record<SafetyStatus, 'neutral' | 'risk'> = {
 };
 
 const projectionTone = computed(() => projectionToneByStatus[props.summary.safetyStatus]);
+
+type PaceGaugeTier = 'noRunway' | 'controlled' | 'stable' | 'nearLimit' | 'overBudget';
+
+const paceGaugeToneByStatus: Record<SafetyStatus, {
+  containerClass: string;
+  arcClass: string;
+  trackClass: string;
+  needleClass: string;
+  pivotClass: string;
+}> = {
+  safe: {
+    containerClass: 'border-emerald-300/55 bg-emerald-500/20',
+    arcClass: 'text-emerald-200',
+    trackClass: 'text-emerald-200/45',
+    needleClass: 'text-emerald-50',
+    pivotClass: 'text-emerald-50'
+  },
+  attention: {
+    containerClass: 'border-amber-300/60 bg-amber-500/20',
+    arcClass: 'text-amber-200',
+    trackClass: 'text-amber-200/45',
+    needleClass: 'text-amber-50',
+    pivotClass: 'text-amber-50'
+  },
+  risk: {
+    containerClass: 'border-rose-300/65 bg-rose-500/22',
+    arcClass: 'text-rose-200',
+    trackClass: 'text-rose-200/45',
+    needleClass: 'text-rose-50',
+    pivotClass: 'text-rose-50'
+  }
+};
+
+const paceGaugeAngleByTier: Record<PaceGaugeTier, number> = {
+  noRunway: 52,
+  controlled: -38,
+  stable: -10,
+  nearLimit: 24,
+  overBudget: 50
+};
+
+const paceGaugeTitleKeyByTier: Record<PaceGaugeTier, string> = {
+  noRunway: 'rhythm.noRunway',
+  controlled: 'rhythm.controlled',
+  stable: 'rhythm.stable',
+  nearLimit: 'rhythm.nearLimit',
+  overBudget: 'rhythm.overBudget'
+};
+
+const paceGauge = computed(() => {
+  const tone = paceGaugeToneByStatus[props.summary.safetyStatus];
+
+  if (props.summary.safeDailyBudgetAllDays <= 0) {
+    return {
+      ...tone,
+      needleAngle: paceGaugeAngleByTier.noRunway,
+      title: t(paceGaugeTitleKeyByTier.noRunway)
+    };
+  }
+
+  const ratio = props.summary.currentPacePerDay / props.summary.safeDailyBudgetAllDays;
+  const tier: PaceGaugeTier = ratio < 0.6
+    ? 'controlled'
+    : ratio < 0.85
+      ? 'stable'
+      : ratio < 1
+        ? 'nearLimit'
+        : 'overBudget';
+
+  return {
+    ...tone,
+    needleAngle: paceGaugeAngleByTier[tier],
+    title: t(paceGaugeTitleKeyByTier[tier])
+  };
+});
 
 const diagnosisAndProjectionLabel = computed(() => t('diagnostics.titleTop'));
 const quotaHealthLabel = computed(() => t('diagnostics.title'));

@@ -23,7 +23,10 @@ function roundToSingleDecimal(value: number): number {
   return Math.round(value * 10) / 10;
 }
 
-function calculateExpectedConsumedUntilPreviousDay(cycle: CycleInfo, referenceDate: ISODateString): number {
+export function calculateExpectedConsumedUntilPreviousDay(
+  cycle: CycleInfo,
+  referenceDate: ISODateString
+): number {
   const previousDay = addDays(referenceDate, -1);
 
   if (isBefore(previousDay, cycle.cycleStart)) {
@@ -54,7 +57,7 @@ export const initialSnapshot: UsageSnapshot = {
   consumedPercent: Number(initialUsageHistory[today] ?? 0)
 };
 
-function buildDefaultPlanning(snapshot: UsageSnapshot, cycle: CycleInfo): PlanningMap {
+export function buildDefaultPlanning(snapshot: UsageSnapshot, cycle: CycleInfo): PlanningMap {
   const planning: PlanningMap = {};
   const futureDates = eachDayInclusive(addDays(snapshot.measurementDate, 1), cycle.resetDate);
 
@@ -67,6 +70,26 @@ function buildDefaultPlanning(snapshot: UsageSnapshot, cycle: CycleInfo): Planni
   }
 
   return planning;
+}
+
+export function buildDefaultCycleState(cycle: CycleInfo, referenceDate: ISODateString): {
+  snapshot: UsageSnapshot;
+  usageHistory: UsageHistoryMap;
+  planning: PlanningMap;
+} {
+  const usageHistory: UsageHistoryMap = {
+    [referenceDate]: calculateExpectedConsumedUntilPreviousDay(cycle, referenceDate)
+  };
+  const snapshot: UsageSnapshot = {
+    measurementDate: referenceDate,
+    consumedPercent: Number(usageHistory[referenceDate] ?? 0)
+  };
+
+  return {
+    snapshot,
+    usageHistory,
+    planning: buildDefaultPlanning(snapshot, cycle)
+  };
 }
 
 export const initialPlanning: PlanningMap = buildDefaultPlanning(initialSnapshot, initialCycle);

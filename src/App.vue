@@ -4,6 +4,10 @@
     @navigate="navigate($event)"
   />
   <HistoryPage
+    v-else-if="currentPage === 'history'"
+    @navigate="navigate($event)"
+  />
+  <AccountsPage
     v-else
     @navigate="navigate($event)"
   />
@@ -11,13 +15,22 @@
 
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from 'vue';
+import AccountsPage from '@/pages/AccountsPage.vue';
 import HistoryPage from '@/pages/HistoryPage.vue';
 import TokenTrackerPage from '@/pages/TokenTrackerPage.vue';
 
-type AppPage = 'tracker' | 'history';
+type AppPage = 'tracker' | 'history' | 'accounts';
 
 function getPageFromHash(hash: string): AppPage {
-  return hash === '#/history' ? 'history' : 'tracker';
+  if (hash === '#/history') {
+    return 'history';
+  }
+
+  if (hash === '#/accounts') {
+    return 'accounts';
+  }
+
+  return 'tracker';
 }
 
 const currentPage = ref<AppPage>(
@@ -31,7 +44,11 @@ function navigate(page: AppPage) {
     return;
   }
 
-  const nextHash = page === 'history' ? '#/history' : '#/';
+  const nextHash = page === 'history'
+    ? '#/history'
+    : page === 'accounts'
+      ? '#/accounts'
+      : '#/';
 
   if (window.location.hash !== nextHash) {
     window.location.hash = nextHash;

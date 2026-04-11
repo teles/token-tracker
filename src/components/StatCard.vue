@@ -1,7 +1,10 @@
 <template>
   <article class="rounded-xl border bg-slate-900/50 p-4" :class="toneClasses[tone]">
     <p class="panel-title">{{ title }}</p>
-    <p class="mt-3 text-xl font-semibold text-slate-100">{{ value }}</p>
+    <div class="mt-3 flex items-center gap-3">
+      <slot name="leading" />
+      <p class="text-xl font-semibold text-slate-100">{{ value }}</p>
+    </div>
     <p v-if="hint" class="mt-2 text-xs text-slate-400">{{ hint }}</p>
   </article>
 </template>
