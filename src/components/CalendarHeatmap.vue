@@ -30,13 +30,13 @@
     </div>
 
     <template v-if="viewMode === 'heatmap'">
-      <div class="grid grid-cols-7 gap-2 text-[11px] uppercase tracking-[0.16em] text-slate-500">
-        <span v-for="weekday in weekdays" :key="weekday" class="px-1 py-1 text-center">
+      <div class="grid grid-cols-7 gap-1.5 text-[10px] uppercase tracking-[0.14em] text-slate-500 sm:gap-2 sm:text-[11px] sm:tracking-[0.16em]">
+        <span v-for="weekday in weekdays" :key="weekday" class="px-0.5 py-0.5 text-center sm:px-1 sm:py-1">
           {{ weekday }}
         </span>
       </div>
 
-      <div class="mt-2 grid grid-cols-7 gap-2">
+      <div class="mt-2 grid grid-cols-7 gap-1.5 sm:gap-2">
         <button
           v-for="day in days"
           :key="day.date"
@@ -53,13 +53,13 @@
         >
           <span
             v-if="day.hasNote && day.isCurrentMonth && day.isInCycle"
-            class="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-amber-200/90 ring-1 ring-amber-300/50"
+            class="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-amber-200/90 ring-1 ring-amber-300/50 sm:right-1.5 sm:top-1.5"
             aria-hidden="true"
           />
-          <span class="font-mono text-xs" :class="day.isCurrentMonth ? 'text-slate-100' : 'text-slate-600'">
+          <span class="font-mono text-[11px] sm:text-xs" :class="day.isCurrentMonth ? 'text-slate-100' : 'text-slate-600'">
             {{ day.dayNumber }}
           </span>
-          <span v-if="day.isMeasurementDay" class="absolute bottom-1 left-2 text-[10px] text-cyan-200">{{ measuredLabel }}</span>
+          <span v-if="day.isMeasurementDay" class="absolute bottom-1 left-2 hidden text-[10px] text-cyan-200 sm:block">{{ measuredLabel }}</span>
         </button>
       </div>
     </template>

@@ -5,9 +5,7 @@
         <PageHeader
           :language-label="languageLabel"
           current-page="history"
-          workspace-key="history.workspace"
           title-key="history.title"
-          subtitle-key="history.subtitle"
           @open-settings="isSettingsOpen = true"
           @navigate="emit('navigate', $event)"
         />
@@ -17,7 +15,7 @@
             <article class="rounded-xl border border-slate-700/60 bg-slate-900/50 p-4">
               <p class="panel-title">{{ t('history.summary.latestMeasurement') }}</p>
               <p v-if="latestMeasurement" class="mt-2 text-2xl font-semibold text-cyan-100">
-                {{ formatPercent(latestMeasurement.consumedPercent) }}%
+                {{ formatPercent(latestMeasurement.consumedPercent) }}
               </p>
               <p v-else class="mt-2 text-lg font-semibold text-slate-300">{{ t('history.summary.noData') }}</p>
               <p class="mt-1 text-xs text-slate-400">
@@ -168,7 +166,7 @@
                     entry.kind === 'measurement' && entry.isEstimated ? 'history-estimated-entry history-estimated-muted' : ''
                   ]"
                 >
-                  <div class="flex items-start justify-between gap-3">
+                  <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div class="min-w-0 space-y-2">
                       <div class="flex flex-wrap items-center gap-2">
                         <span
@@ -191,14 +189,14 @@
                         v-if="entry.kind === 'measurement'"
                         class="space-y-1"
                       >
-                        <div class="flex flex-wrap items-center gap-2">
+                        <div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
                           <input
                             type="number"
                             min="0"
                             max="100"
                             step="0.1"
                             :aria-label="t('usageInput.consumedQuota')"
-                            class="w-28 rounded-lg border border-slate-600/70 bg-slate-950/70 px-2.5 py-1.5 text-xs text-slate-100 outline-none transition focus:border-cyan-300/60"
+                            class="w-full rounded-lg border border-slate-600/70 bg-slate-950/70 px-2.5 py-1.5 text-xs text-slate-100 outline-none transition focus:border-cyan-300/60 sm:w-28"
                             :value="getMeasurementDraft(entry.date, entry.consumedPercent ?? 0)"
                             @input="onMeasurementDraftInput(entry.date, $event)"
                             @blur="onMeasurementDraftBlur(entry.date, entry.consumedPercent ?? 0)"
@@ -207,14 +205,14 @@
                           <button
                             v-if="isMeasurementDraftDirty(entry.date, entry.consumedPercent ?? 0)"
                             type="button"
-                            class="rounded-lg border border-cyan-300/60 bg-cyan-500/15 px-2.5 py-1.5 text-xs font-medium text-cyan-100 transition hover:border-cyan-200/70"
+                            class="w-full rounded-lg border border-cyan-300/60 bg-cyan-500/15 px-2.5 py-1.5 text-center text-xs font-medium text-cyan-100 transition hover:border-cyan-200/70 sm:w-auto"
                             @click="saveMeasurementEdit(entry.date, entry.consumedPercent ?? 0)"
                           >
                             {{ t('history.measurementEdit.save') }}
                           </button>
                           <span
                             v-else
-                            class="rounded-lg border border-slate-700/70 bg-slate-950/60 px-2.5 py-1.5 text-[11px] text-slate-400"
+                            class="w-full rounded-lg border border-slate-700/70 bg-slate-950/60 px-2.5 py-1.5 text-center text-[11px] text-slate-400 sm:w-auto"
                           >
                             {{ t('history.measurementEdit.saved') }}
                           </span>
@@ -227,7 +225,7 @@
                         </p>
                       </div>
                     </div>
-                    <span class="rounded-md border border-slate-700/70 bg-slate-950/75 px-2 py-1 font-mono text-[10px] text-slate-400">
+                    <span class="self-end rounded-md border border-slate-700/70 bg-slate-950/75 px-2 py-1 font-mono text-[10px] text-slate-400 sm:self-auto">
                       {{ entry.date }}
                     </span>
                   </div>
@@ -541,7 +539,7 @@ const measurementEntries = computed<HistoryEntry[]>(() => (
     consumedPercent: record.consumedPercent,
     isEstimated: record.isEstimated,
     detail: t('history.entry.measuredDetail', {
-      value: `${formatPercent(record.consumedPercent)}%`
+      value: formatPercent(record.consumedPercent)
     })
   }))
 ));

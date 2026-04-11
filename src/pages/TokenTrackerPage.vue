@@ -5,9 +5,7 @@
         <PageHeader
           :language-label="languageLabel"
           current-page="tracker"
-          workspace-key="header.workspace"
           title-key="header.title"
-          subtitle-key="header.subtitle"
           @open-settings="isSettingsOpen = true"
           @navigate="emit('navigate', $event)"
         />

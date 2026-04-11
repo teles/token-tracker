@@ -10,6 +10,9 @@ export const i18nMessages: Record<AppLanguage, MessageMap> = {
     'header.languageBadge.enUs': 'EN',
     'header.languageBadge.ptBr': 'PT-BR',
     'header.subtitle': 'Track your quota usage, plan future usage days, and predict whether your tokens will last until reset.',
+    'header.openMenu': 'Open menu',
+    'header.closeMenu': 'Close menu',
+    'header.navigation': 'Navigation',
     'navigation.history': 'History',
     'navigation.tracker': 'Tracker',
 
@@ -197,6 +200,9 @@ export const i18nMessages: Record<AppLanguage, MessageMap> = {
     'header.languageBadge.enUs': 'EN',
     'header.languageBadge.ptBr': 'PT-BR',
     'header.subtitle': 'Acompanhe o consumo da cota, planeje dias futuros de uso e estime se seus tokens chegam até o reset.',
+    'header.openMenu': 'Abrir menu',
+    'header.closeMenu': 'Fechar menu',
+    'header.navigation': 'Navegação',
     'navigation.history': 'Histórico',
     'navigation.tracker': 'Diagnóstico',
 
