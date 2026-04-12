@@ -1,46 +1,67 @@
+<p align="center">
+  <img src="public/favicon.svg" alt="Token Tracker logo" width="96" />
+</p>
+
 # Token Tracker
 
-Frontend single-page app built with Vue 3 + TypeScript + Tailwind CSS.
+Token Tracker is a Vue 3 + TypeScript single-page app to monitor token quota consumption across cycles, plan future usage, and forecast whether quota will last until reset.
 
-## What is included
+## Highlights
 
-- One main screen focused on tracking a single quota/account
-- Manual input for measurement date and consumed percentage
-- Monthly calendar with `Heatmap | Usage Chart` view toggle
-- Past heatmap + future planning states for day-level control
-- Diagnostic and projection cards
-- What-if scenario cards for quick planning impact
-- Local persistence (snapshot + planning) via localStorage
-- Main insight message generated from domain calculations
-- Unit tests for business rules and pure functions (Vitest)
+- Multi-account workspace with monthly or weekly cycle cadence
+- Account lifecycle actions:
+  - Rename account
+  - Archive account (hidden from active selectors)
+  - Unarchive account
+  - Delete archived account
+- Daily cumulative usage tracking with historical measurements
+- Future ON/OFF planning by day
+- Calendar modes: `Heatmap` and `Usage Chart`
+- Diagnostics and projection summary (risk, pace, safe budget, estimated exhaustion)
+- What-if scenarios for planning impact
+- Day notes per measurement date
+- Data import/export for local backup
+- Internationalization (`en-US`, `pt-BR`)
+- Clean routes (`/`, `/history`, `/accounts`) with account query param (`?account=<uuid>`)
+- PWA support:
+  - Web App Manifest + icons
+  - Service Worker offline app shell
+  - In-app update prompt when a new version is available
+  - App shortcuts in manifest
 
-## Tech stack
+## Tech Stack
 
 - Vue 3 (Composition API)
 - TypeScript
 - Tailwind CSS
+- Vite
 - Vitest
 
-## Project structure
+## Project Structure
 
-- `src/components`: visual components only
-- `src/composables`: screen state and user interaction orchestration
+- `src/components`: visual components (presentation)
+- `src/composables`: app/page state orchestration
 - `src/domain`: pure business rules and calculations
-- `src/use-cases`: application-level composition of domain logic
-- `src/types`: explicit domain types
-- `src/utils`: reusable helpers
-- `src/mocks`: initial realistic data
-- `tests`: unit tests for domain and use cases
+- `src/use-cases`: higher-level composition of domain outputs
+- `src/services`: persistence, workspace/account operations, data transfer, PWA registration
+- `src/types`: shared domain and app types
+- `src/utils`: date/format helpers
+- `src/mocks`: cycle defaults and seed data
+- `public`: static assets (`manifest.webmanifest`, icons, `sw.js`)
+- `tests`: unit tests for domain, services, and composables
 
-## Run locally
+## Scripts
+
+```bash
+pnpm dev      # start local dev server
+pnpm build    # type-check + production build
+pnpm preview  # preview production build
+pnpm test     # run unit tests
+```
+
+## Local Run
 
 ```bash
 pnpm install
 pnpm dev
-```
-
-## Run tests
-
-```bash
-pnpm test
 ```

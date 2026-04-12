@@ -297,4 +297,40 @@ describe('useTokenTrackerState', () => {
     expect(state.cycle.cycleStart).toBe('2026-04-01');
     expect(state.cycle.resetDate).toBe('2026-04-30');
   });
+
+  it('renames, archives, restores and deletes archived accounts', () => {
+    const state = useTokenTrackerState();
+    const defaultAccountId = state.activeAccount.id;
+
+    state.createAndSwitchAccount({
+      name: 'Archive Candidate',
+      provider: 'custom',
+      cadence: 'monthly'
+    });
+
+    const archivedAccountId = state.activeAccount.id;
+    const renameDefault = state.renameAccount(defaultAccountId, 'Renamed Default');
+
+    expect(renameDefault).toBe(true);
+    expect(state.accountSummaries.some((summary) => summary.name === 'Renamed Default')).toBe(true);
+
+    const archived = state.archiveAccount(archivedAccountId);
+
+    expect(archived).toBe(true);
+    expect(state.activeAccount.id).toBe(defaultAccountId);
+    expect(state.accountSummaries.some((summary) => summary.id === archivedAccountId)).toBe(false);
+    expect(state.archivedAccountSummaries.some((summary) => summary.id === archivedAccountId)).toBe(true);
+
+    const restored = state.unarchiveAccount(archivedAccountId);
+
+    expect(restored).toBe(true);
+    expect(state.accountSummaries.some((summary) => summary.id === archivedAccountId)).toBe(true);
+
+    state.archiveAccount(archivedAccountId);
+    const deleted = state.deleteArchivedAccount(archivedAccountId);
+
+    expect(deleted).toBe(true);
+    expect(state.accountSummaries.some((summary) => summary.id === archivedAccountId)).toBe(false);
+    expect(state.archivedAccountSummaries.some((summary) => summary.id === archivedAccountId)).toBe(false);
+  });
 });

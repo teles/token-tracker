@@ -1,12 +1,17 @@
 import { TOKEN_TRACKER_STORAGE_KEY } from '@/services/persistence';
 import {
   activateTrackerAccount,
+  archiveTrackerAccount,
   createTrackerAccount,
+  deleteArchivedTrackerAccount,
   listAccountCycles,
   listTrackerAccounts,
-  loadActiveTrackerSlice
+  loadActiveTrackerSlice,
+  renameTrackerAccount,
+  unarchiveTrackerAccount
 } from '@/services/tracker-workspace';
 import { TOKEN_TRACKER_WORKSPACE_STORAGE_KEY } from '@/services/tracker-repository';
+import { todayIsoDate } from '@/utils/date';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -184,6 +189,63 @@ describe('tracker workspace', () => {
     expect(createdSlice.activeAccount.id).not.toBe(defaultAccountId);
     expect(switchedSlice).not.toBeNull();
     expect(switchedSlice?.activeAccount.id).toBe(defaultAccountId);
+  });
+
+  it('renames an account', () => {
+    const baseSlice = loadActiveTrackerSlice();
+    const renamedSlice = renameTrackerAccount(baseSlice.activeAccount.id, 'Operations Team');
+    const summaries = listTrackerAccounts();
+    const renamedSummary = summaries.find((summary) => summary.id === baseSlice.activeAccount.id);
+
+    expect(renamedSlice).not.toBeNull();
+    expect(renamedSlice?.activeAccount.name).toBe('Operations Team');
+    expect(renamedSummary?.name).toBe('Operations Team');
+  });
+
+  it('archives an account, keeps it out of active selectors, and allows restore/delete lifecycle', () => {
+    const baseSlice = loadActiveTrackerSlice();
+    const defaultAccountId = baseSlice.activeAccount.id;
+    const createdSlice = createTrackerAccount({
+      name: 'Archive Candidate',
+      provider: 'custom',
+      cadence: 'monthly'
+    });
+    const candidateAccountId = createdSlice.activeAccount.id;
+
+    const archivedSlice = archiveTrackerAccount(candidateAccountId);
+    const activeSummariesAfterArchive = listTrackerAccounts();
+    const archivedSummariesAfterArchive = listTrackerAccounts(todayIsoDate(), { scope: 'archived' });
+    const archivedSummary = archivedSummariesAfterArchive.find((summary) => summary.id === candidateAccountId);
+    const activateArchived = activateTrackerAccount(candidateAccountId);
+
+    expect(archivedSlice).not.toBeNull();
+    expect(archivedSlice?.activeAccount.id).toBe(defaultAccountId);
+    expect(activeSummariesAfterArchive.some((summary) => summary.id === candidateAccountId)).toBe(false);
+    expect(archivedSummary?.isArchived).toBe(true);
+    expect(activateArchived).toBeNull();
+
+    const unarchivedSlice = unarchiveTrackerAccount(candidateAccountId);
+    const activeSummariesAfterUnarchive = listTrackerAccounts();
+
+    expect(unarchivedSlice).not.toBeNull();
+    expect(activeSummariesAfterUnarchive.some((summary) => summary.id === candidateAccountId)).toBe(true);
+
+    const archivedAgainSlice = archiveTrackerAccount(candidateAccountId);
+    const deletedSlice = deleteArchivedTrackerAccount(candidateAccountId);
+    const activeSummariesAfterDelete = listTrackerAccounts();
+    const archivedSummariesAfterDelete = listTrackerAccounts(todayIsoDate(), { scope: 'archived' });
+
+    expect(archivedAgainSlice).not.toBeNull();
+    expect(deletedSlice).not.toBeNull();
+    expect(activeSummariesAfterDelete.some((summary) => summary.id === candidateAccountId)).toBe(false);
+    expect(archivedSummariesAfterDelete.some((summary) => summary.id === candidateAccountId)).toBe(false);
+  });
+
+  it('does not archive the only active account', () => {
+    const baseSlice = loadActiveTrackerSlice();
+    const archivedSlice = archiveTrackerAccount(baseSlice.activeAccount.id);
+
+    expect(archivedSlice).toBeNull();
   });
 
   it('migrates legacy account ids into UUIDs in workspace storage', () => {

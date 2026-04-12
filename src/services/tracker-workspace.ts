@@ -44,6 +44,7 @@ export interface TrackerAccountSummary {
   activeCycleEnd: ISODateString;
   closedCyclesCount: number;
   isActive: boolean;
+  isArchived: boolean;
 }
 
 export interface CreateTrackerAccountInput {
@@ -51,6 +52,12 @@ export interface CreateTrackerAccountInput {
   provider: TrackerAccountProvider;
   cadence: TrackerCycleCadence;
   quotaPercent?: number;
+}
+
+type TrackerAccountScope = 'active' | 'archived' | 'all';
+
+export interface ListTrackerAccountsOptions {
+  scope?: TrackerAccountScope;
 }
 
 export interface ActiveTrackerSlice {
@@ -63,6 +70,34 @@ export interface ActiveTrackerSlice {
 
 function nowIsoTimestamp(): string {
   return new Date().toISOString();
+}
+
+function isArchivedAccount(account: TrackerAccount): boolean {
+  return typeof account.archivedAt === 'string' && account.archivedAt.length > 0;
+}
+
+function listNonArchivedAccountIds(workspace: TrackerWorkspace): string[] {
+  return Object.values(workspace.accounts)
+    .filter((account) => !isArchivedAccount(account))
+    .map((account) => account.id);
+}
+
+function resolveSafeActiveAccountId(
+  workspace: TrackerWorkspace,
+  preferredActiveAccountId: string
+): string | null {
+  const nonArchivedAccountIds = listNonArchivedAccountIds(workspace);
+  const allAccountIds = Object.keys(workspace.accounts);
+
+  if (nonArchivedAccountIds.length === 0) {
+    return allAccountIds[0] ?? null;
+  }
+
+  if (nonArchivedAccountIds.includes(preferredActiveAccountId)) {
+    return preferredActiveAccountId;
+  }
+
+  return nonArchivedAccountIds[0];
 }
 
 function isUuid(value: string): boolean {
@@ -221,6 +256,7 @@ function buildDefaultAccount(referenceDate: ISODateString): {
       quotaPercent: 100,
       activeCycleId: cycle.id,
       cycleIds: [cycle.id],
+      archivedAt: null,
       createdAt,
       updatedAt: createdAt
     },
@@ -344,15 +380,23 @@ function ensureWorkspaceAccountIdsAreUuids(workspace: TrackerWorkspace): Tracker
   }
 
   const nextActiveAccountId = accountIdByLegacyId.get(workspace.activeAccountId) ?? workspace.activeAccountId;
-  const fallbackActiveAccountId = migratedAccounts[nextActiveAccountId]
-    ? nextActiveAccountId
-    : Object.keys(migratedAccounts)[0];
-
-  return {
+  const migratedWorkspace: TrackerWorkspace = {
     schemaVersion: workspace.schemaVersion,
-    activeAccountId: fallbackActiveAccountId,
+    activeAccountId: nextActiveAccountId,
     accounts: migratedAccounts,
     cycles: migratedCycles
+  };
+  const fallbackActiveAccountId = resolveSafeActiveAccountId(migratedWorkspace, nextActiveAccountId);
+
+  if (!fallbackActiveAccountId) {
+    return migratedWorkspace;
+  }
+
+  return {
+    schemaVersion: migratedWorkspace.schemaVersion,
+    activeAccountId: fallbackActiveAccountId,
+    accounts: migratedWorkspace.accounts,
+    cycles: migratedWorkspace.cycles
   };
 }
 
@@ -405,6 +449,7 @@ function sanitizeWorkspace(raw: TrackerWorkspace | null): TrackerWorkspace | nul
       quotaPercent: candidate.quotaPercent,
       activeCycleId: candidate.activeCycleId,
       cycleIds: candidate.cycleIds.filter((cycleId): cycleId is string => typeof cycleId === 'string'),
+      archivedAt: typeof candidate.archivedAt === 'string' ? candidate.archivedAt : null,
       createdAt: typeof candidate.createdAt === 'string' ? candidate.createdAt : nowIsoTimestamp(),
       updatedAt: typeof candidate.updatedAt === 'string' ? candidate.updatedAt : nowIsoTimestamp()
     };
@@ -460,18 +505,24 @@ function sanitizeWorkspace(raw: TrackerWorkspace | null): TrackerWorkspace | nul
     };
   }
 
-  const activeAccount = accounts[raw.activeAccountId];
-
-  if (!activeAccount) {
-    return null;
-  }
-
-  return ensureWorkspaceAccountIdsAreUuids({
+  const migratedWorkspace = ensureWorkspaceAccountIdsAreUuids({
     schemaVersion: WORKSPACE_SCHEMA_VERSION,
     activeAccountId: raw.activeAccountId,
     accounts,
     cycles
   });
+  const safeActiveAccountId = resolveSafeActiveAccountId(migratedWorkspace, migratedWorkspace.activeAccountId);
+
+  if (!safeActiveAccountId) {
+    return null;
+  }
+
+  return {
+    schemaVersion: migratedWorkspace.schemaVersion,
+    activeAccountId: safeActiveAccountId,
+    accounts: migratedWorkspace.accounts,
+    cycles: migratedWorkspace.cycles
+  };
 }
 
 function ensureAccountHasActiveCycle(workspace: TrackerWorkspace, account: TrackerAccount, referenceDate: ISODateString) {
@@ -535,6 +586,10 @@ function ensureAccountHasActiveCycle(workspace: TrackerWorkspace, account: Track
 
 function ensureWorkspaceAccounts(workspace: TrackerWorkspace, referenceDate: ISODateString) {
   for (const account of Object.values(workspace.accounts)) {
+    if (isArchivedAccount(account)) {
+      continue;
+    }
+
     ensureAccountHasActiveCycle(workspace, account, referenceDate);
   }
 }
@@ -563,7 +618,10 @@ export function loadActiveTrackerSlice(referenceDate: ISODateString = todayIsoDa
   const repository = getTrackerRepository();
   const workspace = loadWorkspace(referenceDate);
   ensureWorkspaceAccounts(workspace, referenceDate);
-  const activeAccount = workspace.accounts[workspace.activeAccountId] ?? Object.values(workspace.accounts)[0];
+  const safeActiveAccountId = resolveSafeActiveAccountId(workspace, workspace.activeAccountId);
+  const activeAccount = safeActiveAccountId
+    ? workspace.accounts[safeActiveAccountId]
+    : undefined;
 
   if (!activeAccount) {
     const fresh = buildWorkspaceFromDefault(referenceDate);
@@ -580,6 +638,8 @@ export function loadActiveTrackerSlice(referenceDate: ISODateString = todayIsoDa
       state: fallbackCycle.state
     };
   }
+
+  workspace.activeAccountId = activeAccount.id;
 
   ensureAccountHasActiveCycle(workspace, activeAccount, referenceDate);
   const activeCycle = workspace.cycles[activeAccount.activeCycleId];
@@ -666,12 +726,26 @@ export function listAccountCycles(accountId: string): TrackerCycleRecord[] {
     .sort((a, b) => b.cycleStart.localeCompare(a.cycleStart));
 }
 
-export function listTrackerAccounts(referenceDate: ISODateString = todayIsoDate()): TrackerAccountSummary[] {
+export function listTrackerAccounts(
+  referenceDate: ISODateString = todayIsoDate(),
+  options: ListTrackerAccountsOptions = {}
+): TrackerAccountSummary[] {
   const workspace = loadWorkspace(referenceDate);
   ensureWorkspaceAccounts(workspace, referenceDate);
+  const scope = options.scope ?? 'active';
 
   return Object.values(workspace.accounts)
     .map((account) => {
+      const isArchived = isArchivedAccount(account);
+
+      if (scope === 'active' && isArchived) {
+        return null;
+      }
+
+      if (scope === 'archived' && !isArchived) {
+        return null;
+      }
+
       const activeCycle = workspace.cycles[account.activeCycleId];
 
       if (!activeCycle) {
@@ -692,11 +766,20 @@ export function listTrackerAccounts(referenceDate: ISODateString = todayIsoDate(
         activeCycleStart: activeCycle.cycleStart,
         activeCycleEnd: activeCycle.resetDate,
         closedCyclesCount,
-        isActive: account.id === workspace.activeAccountId
+        isActive: account.id === workspace.activeAccountId,
+        isArchived
       };
     })
     .filter((summary): summary is TrackerAccountSummary => !!summary)
     .sort((a, b) => {
+      if (a.isArchived && !b.isArchived) {
+        return 1;
+      }
+
+      if (!a.isArchived && b.isArchived) {
+        return -1;
+      }
+
       if (a.isActive && !b.isActive) {
         return -1;
       }
@@ -715,8 +798,9 @@ export function activateTrackerAccount(
 ): ActiveTrackerSlice | null {
   const repository = getTrackerRepository();
   const workspace = cloneWorkspace(loadWorkspace(referenceDate));
+  const candidateAccount = workspace.accounts[accountId];
 
-  if (!workspace.accounts[accountId]) {
+  if (!candidateAccount || isArchivedAccount(candidateAccount)) {
     return null;
   }
 
@@ -758,11 +842,123 @@ export function createTrackerAccount(
     quotaPercent,
     activeCycleId: cycle.id,
     cycleIds: [cycle.id],
+    archivedAt: null,
     createdAt,
     updatedAt: createdAt
   };
   workspace.cycles[cycle.id] = cycle;
   workspace.activeAccountId = accountId;
+  repository.saveWorkspace(workspace);
+
+  return loadActiveTrackerSlice(referenceDate);
+}
+
+export function renameTrackerAccount(
+  accountId: string,
+  nextName: string,
+  referenceDate: ISODateString = todayIsoDate()
+): ActiveTrackerSlice | null {
+  const repository = getTrackerRepository();
+  const workspace = cloneWorkspace(loadWorkspace(referenceDate));
+  const account = workspace.accounts[accountId];
+
+  if (!account) {
+    return null;
+  }
+
+  const trimmedName = nextName.trim();
+
+  if (trimmedName.length === 0) {
+    return null;
+  }
+
+  account.name = trimmedName.slice(0, 60);
+  account.updatedAt = nowIsoTimestamp();
+  repository.saveWorkspace(workspace);
+
+  return loadActiveTrackerSlice(referenceDate);
+}
+
+export function archiveTrackerAccount(
+  accountId: string,
+  referenceDate: ISODateString = todayIsoDate()
+): ActiveTrackerSlice | null {
+  const repository = getTrackerRepository();
+  const workspace = cloneWorkspace(loadWorkspace(referenceDate));
+  const account = workspace.accounts[accountId];
+
+  if (!account || isArchivedAccount(account)) {
+    return null;
+  }
+
+  const nonArchivedAccountIds = listNonArchivedAccountIds(workspace);
+
+  if (nonArchivedAccountIds.length <= 1) {
+    return null;
+  }
+
+  account.archivedAt = nowIsoTimestamp();
+  account.updatedAt = nowIsoTimestamp();
+
+  if (workspace.activeAccountId === accountId) {
+    const fallbackAccountId = nonArchivedAccountIds.find((id) => id !== accountId) ?? null;
+
+    if (!fallbackAccountId) {
+      return null;
+    }
+
+    workspace.activeAccountId = fallbackAccountId;
+  }
+
+  repository.saveWorkspace(workspace);
+
+  return loadActiveTrackerSlice(referenceDate);
+}
+
+export function unarchiveTrackerAccount(
+  accountId: string,
+  referenceDate: ISODateString = todayIsoDate()
+): ActiveTrackerSlice | null {
+  const repository = getTrackerRepository();
+  const workspace = cloneWorkspace(loadWorkspace(referenceDate));
+  const account = workspace.accounts[accountId];
+
+  if (!account || !isArchivedAccount(account)) {
+    return null;
+  }
+
+  account.archivedAt = null;
+  account.updatedAt = nowIsoTimestamp();
+  repository.saveWorkspace(workspace);
+
+  return loadActiveTrackerSlice(referenceDate);
+}
+
+export function deleteArchivedTrackerAccount(
+  accountId: string,
+  referenceDate: ISODateString = todayIsoDate()
+): ActiveTrackerSlice | null {
+  const repository = getTrackerRepository();
+  const workspace = cloneWorkspace(loadWorkspace(referenceDate));
+  const account = workspace.accounts[accountId];
+
+  if (!account || !isArchivedAccount(account)) {
+    return null;
+  }
+
+  for (const cycleId of account.cycleIds) {
+    delete workspace.cycles[cycleId];
+  }
+
+  delete workspace.accounts[accountId];
+
+  const safeActiveAccountId = resolveSafeActiveAccountId(workspace, workspace.activeAccountId);
+
+  if (!safeActiveAccountId) {
+    return null;
+  }
+
+  workspace.activeAccountId = safeActiveAccountId;
   repository.saveWorkspace(workspace);
 
   return loadActiveTrackerSlice(referenceDate);

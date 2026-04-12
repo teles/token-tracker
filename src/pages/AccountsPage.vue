@@ -65,47 +65,95 @@
               </button>
             </article>
 
-            <article class="rounded-xl border border-slate-700/70 bg-slate-950/45 p-4">
-              <p class="panel-title">{{ t('accounts.create.title') }}</p>
+            <div class="space-y-4">
+              <article class="rounded-xl border border-slate-700/70 bg-slate-950/45 p-4">
+                <p class="panel-title">{{ t('accounts.create.title') }}</p>
 
-              <div class="mt-3 space-y-2">
-                <input
-                  v-model="newAccountName"
-                  type="text"
-                  maxlength="60"
-                  class="w-full rounded-lg border border-slate-700/70 bg-slate-900/80 px-2.5 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-300/60"
-                  :placeholder="t('accounts.create.namePlaceholder')"
-                />
+                <div class="mt-3 space-y-2">
+                  <input
+                    v-model="newAccountName"
+                    type="text"
+                    maxlength="60"
+                    class="w-full rounded-lg border border-slate-700/70 bg-slate-900/80 px-2.5 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-300/60"
+                    :placeholder="t('accounts.create.namePlaceholder')"
+                  />
 
-                <div class="grid grid-cols-2 gap-2">
-                  <select
-                    v-model="newAccountProvider"
-                    class="rounded-lg border border-slate-700/70 bg-slate-900/80 px-2.5 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-300/60"
+                  <div class="grid grid-cols-2 gap-2">
+                    <select
+                      v-model="newAccountProvider"
+                      class="rounded-lg border border-slate-700/70 bg-slate-900/80 px-2.5 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-300/60"
+                    >
+                      <option v-for="option in providerOptions" :key="option.value" :value="option.value">
+                        {{ option.label }}
+                      </option>
+                    </select>
+
+                    <select
+                      v-model="newAccountCadence"
+                      class="rounded-lg border border-slate-700/70 bg-slate-900/80 px-2.5 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-300/60"
+                    >
+                      <option v-for="option in cadenceOptions" :key="option.value" :value="option.value">
+                        {{ option.label }}
+                      </option>
+                    </select>
+                  </div>
+
+                  <button
+                    type="button"
+                    class="w-full rounded-lg border border-cyan-300/60 bg-cyan-500/15 px-3 py-2 text-sm font-medium text-cyan-100 transition hover:border-cyan-200/70"
+                    @click="handleCreateAccount"
                   >
-                    <option v-for="option in providerOptions" :key="option.value" :value="option.value">
-                      {{ option.label }}
-                    </option>
-                  </select>
-
-                  <select
-                    v-model="newAccountCadence"
-                    class="rounded-lg border border-slate-700/70 bg-slate-900/80 px-2.5 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-300/60"
-                  >
-                    <option v-for="option in cadenceOptions" :key="option.value" :value="option.value">
-                      {{ option.label }}
-                    </option>
-                  </select>
+                    {{ t('accounts.create.action') }}
+                  </button>
                 </div>
+              </article>
 
-                <button
-                  type="button"
-                  class="w-full rounded-lg border border-cyan-300/60 bg-cyan-500/15 px-3 py-2 text-sm font-medium text-cyan-100 transition hover:border-cyan-200/70"
-                  @click="handleCreateAccount"
-                >
-                  {{ t('accounts.create.action') }}
-                </button>
-              </div>
-            </article>
+              <article class="rounded-xl border border-slate-700/70 bg-slate-950/45 p-4">
+                <p class="panel-title">{{ t('accounts.manage.title') }}</p>
+
+                <div class="mt-3 space-y-2">
+                  <p class="text-[11px] uppercase tracking-[0.16em] text-slate-500">{{ t('accounts.manage.selectLabel') }}</p>
+                  <select
+                    v-model="selectedActiveAccountId"
+                    class="w-full rounded-lg border border-slate-700/70 bg-slate-900/80 px-2.5 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-300/60"
+                  >
+                    <option
+                      v-for="account in accountSummaries"
+                      :key="account.id"
+                      :value="account.id"
+                    >
+                      {{ account.name }}
+                    </option>
+                  </select>
+
+                  <p class="text-[11px] uppercase tracking-[0.16em] text-slate-500">{{ t('accounts.manage.nameLabel') }}</p>
+                  <input
+                    v-model="managedAccountName"
+                    type="text"
+                    maxlength="60"
+                    class="w-full rounded-lg border border-slate-700/70 bg-slate-900/80 px-2.5 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-300/60"
+                    :placeholder="t('accounts.create.namePlaceholder')"
+                  />
+
+                  <div class="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      class="rounded-lg border border-cyan-300/60 bg-cyan-500/15 px-3 py-2 text-sm font-medium text-cyan-100 transition hover:border-cyan-200/70"
+                      @click="handleRenameSelectedAccount"
+                    >
+                      {{ t('accounts.manage.renameAction') }}
+                    </button>
+                    <button
+                      type="button"
+                      class="rounded-lg border border-amber-300/55 bg-amber-500/10 px-3 py-2 text-sm font-medium text-amber-100 transition hover:border-amber-200/70"
+                      @click="handleArchiveSelectedAccount"
+                    >
+                      {{ t('accounts.manage.archiveAction') }}
+                    </button>
+                  </div>
+                </div>
+              </article>
+            </div>
           </div>
 
           <p
@@ -115,6 +163,56 @@
           >
             {{ accountFeedback.message }}
           </p>
+        </section>
+
+        <section class="panel-surface p-5 sm:p-6">
+          <div class="mb-3 flex items-start justify-between gap-2">
+            <p class="panel-title">{{ t('accounts.archived.title') }}</p>
+            <span class="rounded-md border border-slate-700/70 bg-slate-950/70 px-2 py-1 font-mono text-[10px] text-slate-400">
+              {{ archivedAccountSummaries.length }}
+            </span>
+          </div>
+
+          <div
+            v-if="archivedAccountSummaries.length === 0"
+            class="rounded-xl border border-slate-700/60 bg-slate-900/35 px-4 py-5 text-sm text-slate-400"
+          >
+            {{ t('accounts.archived.empty') }}
+          </div>
+
+          <ul v-else class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <li
+              v-for="account in archivedAccountSummaries"
+              :key="account.id"
+              class="rounded-xl border border-slate-700/60 bg-slate-900/45 p-4"
+            >
+              <p class="text-sm font-semibold text-slate-100">{{ account.name }}</p>
+              <p class="mt-2 text-xs text-slate-400">
+                {{ toProviderLabel(account.provider) }} · {{ toCadenceLabel(account.cadence) }}
+              </p>
+              <p class="mt-1 text-xs text-slate-500">
+                {{ account.activeCycleStart }} -> {{ account.activeCycleEnd }} ·
+                {{ t('accounts.switch.closedCycles', { count: account.closedCyclesCount }) }}
+              </p>
+
+              <div class="mt-3 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  class="rounded-lg border border-emerald-300/55 bg-emerald-500/10 px-2.5 py-1.5 text-xs font-medium text-emerald-100 transition hover:border-emerald-200/70"
+                  @click="handleUnarchiveAccount(account.id)"
+                >
+                  {{ t('accounts.archived.unarchiveAction') }}
+                </button>
+                <button
+                  type="button"
+                  class="rounded-lg border border-rose-300/55 bg-rose-500/10 px-2.5 py-1.5 text-xs font-medium text-rose-100 transition hover:border-rose-200/70"
+                  @click="handleDeleteArchivedAccount(account.id, account.name)"
+                >
+                  {{ t('accounts.archived.deleteAction') }}
+                </button>
+              </div>
+            </li>
+          </ul>
         </section>
 
         <section class="panel-surface p-5 sm:p-6">
@@ -188,7 +286,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import PageHeader from '@/components/PageHeader.vue';
 import ProjectFooter from '@/components/ProjectFooter.vue';
 import SettingsModal from '@/components/SettingsModal.vue';
@@ -222,9 +320,14 @@ const {
   activeAccount,
   cycle,
   accountSummaries,
+  archivedAccountSummaries,
   accountCycles,
   switchActiveAccount,
   createAndSwitchAccount,
+  renameAccount,
+  archiveAccount,
+  unarchiveAccount,
+  deleteArchivedAccount,
   getExportPayload,
   importFromSerializedData,
   resetCycleData
@@ -236,6 +339,8 @@ const settingsDataFeedback = ref<SettingsFeedback | null>(null);
 const newAccountName = ref('');
 const newAccountProvider = ref<TrackerAccountProvider>('custom');
 const newAccountCadence = ref<TrackerCycleCadence>('monthly');
+const selectedActiveAccountId = ref('');
+const managedAccountName = ref('');
 const { language, setLanguage } = useUiLanguage();
 const { t } = useI18n();
 
@@ -259,6 +364,36 @@ const cadenceOptions = computed<Array<{ value: TrackerCycleCadence; label: strin
   { value: 'monthly', label: t('settings.accounts.cadence.monthly') },
   { value: 'weekly', label: t('settings.accounts.cadence.weekly') }
 ]);
+
+watch(
+  () => activeAccount.id,
+  (activeAccountId) => {
+    selectedActiveAccountId.value = activeAccountId;
+  },
+  { immediate: true }
+);
+
+watch(
+  () => ({
+    selectedAccountId: selectedActiveAccountId.value,
+    summarySignature: accountSummaries.map((account) => `${account.id}:${account.name}`).join('|')
+  }),
+  () => {
+    const selectedAccount = accountSummaries.find((account) => account.id === selectedActiveAccountId.value)
+      ?? accountSummaries.find((account) => account.id === activeAccount.id)
+      ?? accountSummaries[0];
+
+    if (!selectedAccount) {
+      selectedActiveAccountId.value = '';
+      managedAccountName.value = '';
+      return;
+    }
+
+    selectedActiveAccountId.value = selectedAccount.id;
+    managedAccountName.value = selectedAccount.name;
+  },
+  { immediate: true }
+);
 
 function toProviderLabel(provider: TrackerAccountProvider): string {
   switch (provider) {
@@ -330,6 +465,80 @@ function handleCreateAccount() {
   });
 
   newAccountName.value = '';
+}
+
+function handleRenameSelectedAccount() {
+  if (!selectedActiveAccountId.value) {
+    return;
+  }
+
+  const renamed = renameAccount(selectedActiveAccountId.value, managedAccountName.value);
+
+  accountFeedback.value = {
+    tone: renamed ? 'success' : 'error',
+    message: renamed
+      ? t('accounts.manage.renameSuccess')
+      : t('accounts.manage.renameError')
+  };
+}
+
+function handleArchiveSelectedAccount() {
+  if (!selectedActiveAccountId.value) {
+    return;
+  }
+
+  const selectedAccount = accountSummaries.find((account) => account.id === selectedActiveAccountId.value);
+
+  if (!selectedAccount) {
+    return;
+  }
+
+  const shouldArchive = typeof window === 'undefined'
+    ? true
+    : window.confirm(t('accounts.manage.archiveConfirm', { name: selectedAccount.name }));
+
+  if (!shouldArchive) {
+    return;
+  }
+
+  const archived = archiveAccount(selectedActiveAccountId.value);
+
+  accountFeedback.value = {
+    tone: archived ? 'success' : 'error',
+    message: archived
+      ? t('accounts.manage.archiveSuccess')
+      : t('accounts.manage.archiveError')
+  };
+}
+
+function handleUnarchiveAccount(accountId: string) {
+  const unarchived = unarchiveAccount(accountId);
+
+  accountFeedback.value = {
+    tone: unarchived ? 'success' : 'error',
+    message: unarchived
+      ? t('accounts.archived.unarchiveSuccess')
+      : t('accounts.archived.unarchiveError')
+  };
+}
+
+function handleDeleteArchivedAccount(accountId: string, accountName: string) {
+  const shouldDelete = typeof window === 'undefined'
+    ? true
+    : window.confirm(t('accounts.archived.deleteConfirm', { name: accountName }));
+
+  if (!shouldDelete) {
+    return;
+  }
+
+  const deleted = deleteArchivedAccount(accountId);
+
+  accountFeedback.value = {
+    tone: deleted ? 'success' : 'error',
+    message: deleted
+      ? t('accounts.archived.deleteSuccess')
+      : t('accounts.archived.deleteError')
+  };
 }
 
 function toImportErrorMessage(errorCode: ImportDataErrorCode): string {

@@ -10,11 +10,15 @@ import { buildDefaultCycleState } from '@/mocks/initial-data';
 import { buildDataExportPayload, parseDataImportPayload } from '@/services/data-transfer';
 import {
   activateTrackerAccount,
+  archiveTrackerAccount,
   createTrackerAccount,
+  deleteArchivedTrackerAccount,
   listAccountCycles,
   listTrackerAccounts,
   loadActiveTrackerSlice,
-  persistActiveTrackerState
+  persistActiveTrackerState,
+  renameTrackerAccount,
+  unarchiveTrackerAccount
 } from '@/services/tracker-workspace';
 import type { ParseDataImportResult, TokenTrackerExportPayload } from '@/services/data-transfer';
 import type { PersistedStateV2 } from '@/services/persistence';
@@ -160,7 +164,10 @@ export function useTokenTrackerState() {
   normalizePlanningEntries(referenceDate.value, planning, cycle);
 
   const accountSummaries = reactive<TrackerAccountSummary[]>(
-    listTrackerAccounts(todayIsoDate())
+    listTrackerAccounts(todayIsoDate(), { scope: 'active' })
+  );
+  const archivedAccountSummaries = reactive<TrackerAccountSummary[]>(
+    listTrackerAccounts(todayIsoDate(), { scope: 'archived' })
   );
   const accountCycles = reactive<TrackerCycleRecord[]>(
     listAccountCycles(activeAccount.id)
@@ -274,6 +281,7 @@ export function useTokenTrackerState() {
     activeAccount.quotaPercent = nextSlice.activeAccount.quotaPercent;
     activeAccount.activeCycleId = nextSlice.activeAccount.activeCycleId;
     activeAccount.cycleIds = [...nextSlice.activeAccount.cycleIds];
+    activeAccount.archivedAt = nextSlice.activeAccount.archivedAt ?? null;
     activeAccount.createdAt = nextSlice.activeAccount.createdAt;
     activeAccount.updatedAt = nextSlice.activeAccount.updatedAt;
 
@@ -283,10 +291,12 @@ export function useTokenTrackerState() {
   }
 
   function refreshWorkspaceCollections() {
-    const nextSummaries = listTrackerAccounts(todayIsoDate());
+    const nextSummaries = listTrackerAccounts(todayIsoDate(), { scope: 'active' });
+    const nextArchivedSummaries = listTrackerAccounts(todayIsoDate(), { scope: 'archived' });
     const nextCycles = listAccountCycles(activeAccount.id);
 
     accountSummaries.splice(0, accountSummaries.length, ...nextSummaries);
+    archivedAccountSummaries.splice(0, archivedAccountSummaries.length, ...nextArchivedSummaries);
     accountCycles.splice(0, accountCycles.length, ...nextCycles);
   }
 
@@ -541,10 +551,55 @@ export function useTokenTrackerState() {
     applyActiveSlice(nextSlice);
   }
 
+  function renameAccount(accountId: string, nextName: string): boolean {
+    const nextSlice = renameTrackerAccount(accountId, nextName, todayIsoDate());
+
+    if (!nextSlice) {
+      return false;
+    }
+
+    applyActiveSlice(nextSlice);
+    return true;
+  }
+
+  function archiveAccount(accountId: string): boolean {
+    const nextSlice = archiveTrackerAccount(accountId, todayIsoDate());
+
+    if (!nextSlice) {
+      return false;
+    }
+
+    applyActiveSlice(nextSlice);
+    return true;
+  }
+
+  function unarchiveAccount(accountId: string): boolean {
+    const nextSlice = unarchiveTrackerAccount(accountId, todayIsoDate());
+
+    if (!nextSlice) {
+      return false;
+    }
+
+    applyActiveSlice(nextSlice);
+    return true;
+  }
+
+  function deleteArchivedAccount(accountId: string): boolean {
+    const nextSlice = deleteArchivedTrackerAccount(accountId, todayIsoDate());
+
+    if (!nextSlice) {
+      return false;
+    }
+
+    applyActiveSlice(nextSlice);
+    return true;
+  }
+
   return {
     cycle,
     activeAccount: activeAccount as TrackerAccount,
     accountSummaries,
+    archivedAccountSummaries,
     accountCycles,
     closedCycles,
     snapshot,
@@ -568,6 +623,10 @@ export function useTokenTrackerState() {
     applyShortcut,
     switchActiveAccount,
     createAndSwitchAccount,
+    renameAccount,
+    archiveAccount,
+    unarchiveAccount,
+    deleteArchivedAccount,
     getExportPayload,
     importFromSerializedData,
     resetCycleData

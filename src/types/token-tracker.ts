@@ -34,6 +34,7 @@ export interface TrackerAccount {
   quotaPercent: number;
   activeCycleId: string;
   cycleIds: string[];
+  archivedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }
