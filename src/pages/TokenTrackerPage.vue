@@ -76,7 +76,7 @@
       </div>
     </div>
 
-    <ProjectFooter />
+    <ProjectFooter :show-seo-copy="true" />
     <SettingsModal
       :open="isSettingsOpen"
       :language="language"

@@ -64,6 +64,9 @@ export const i18nMessages: Record<AppLanguage, MessageMap> = {
     'footer.openSource': 'Open Source',
     'footer.description': 'Token Tracker is built in public and available on GitHub.',
     'footer.viewRepository': 'View Repository',
+    'footer.seo.title': 'What Is Token Tracker?',
+    'footer.seo.bodyPrimary': 'Token Tracker is a web app to monitor token quota usage across billing cycles. It helps you register cumulative daily consumption, plan future ON and OFF days, and predict whether your quota will last until reset.',
+    'footer.seo.bodySecondary': 'The app supports multiple accounts, cycle history, day notes, and local data import/export. It also works as an installable Progressive Web App (PWA) with offline support.',
 
     'history.workspace': 'Data Trail',
     'history.title': 'History',
@@ -318,6 +321,9 @@ export const i18nMessages: Record<AppLanguage, MessageMap> = {
     'footer.openSource': 'Código Aberto',
     'footer.description': 'Token Tracker é desenvolvido em público e está disponível no GitHub.',
     'footer.viewRepository': 'Ver Repositório',
+    'footer.seo.title': 'O que é o Token Tracker?',
+    'footer.seo.bodyPrimary': 'Token Tracker é um app web para acompanhar o consumo da cota de tokens ao longo dos ciclos. Ele ajuda a registrar o consumo diário acumulado, planejar dias futuros ON e OFF e prever se a cota chega até o reset.',
+    'footer.seo.bodySecondary': 'O app suporta múltiplas contas, histórico de ciclos, notas por dia e importação/exportação local de dados. Também funciona como Progressive Web App (PWA) instalável com suporte offline.',
 
     'history.workspace': 'Trilha de Dados',
     'history.title': 'Histórico',
