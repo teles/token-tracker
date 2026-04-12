@@ -16,6 +16,10 @@ export const i18nMessages: Record<AppLanguage, MessageMap> = {
     'navigation.history': 'History',
     'navigation.tracker': 'Tracker',
     'navigation.accounts': 'Accounts',
+    'pwa.updateAvailable': 'A new version is available.',
+    'pwa.updateAction': 'Update now',
+    'pwa.dismissAction': 'Later',
+    'pwa.updating': 'Updating...',
 
     'settings.closeAria': 'Close settings',
     'settings.preferences': 'Preferences',
@@ -266,6 +270,10 @@ export const i18nMessages: Record<AppLanguage, MessageMap> = {
     'navigation.history': 'Histórico',
     'navigation.tracker': 'Tracker',
     'navigation.accounts': 'Contas',
+    'pwa.updateAvailable': 'Uma nova versão está disponível.',
+    'pwa.updateAction': 'Atualizar agora',
+    'pwa.dismissAction': 'Depois',
+    'pwa.updating': 'Atualizando...',
 
     'settings.closeAria': 'Fechar configurações',
     'settings.preferences': 'Preferências',

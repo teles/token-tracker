@@ -13,13 +13,42 @@
     v-else
     @navigate="navigate($event)"
   />
+
+  <div
+    v-if="isUpdateBannerVisible"
+    class="fixed bottom-4 left-1/2 z-[70] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-2xl border border-cyan-200/60 bg-slate-900/95 p-3 shadow-panel backdrop-blur"
+  >
+    <p class="text-sm text-slate-100">
+      {{ t('pwa.updateAvailable') }}
+    </p>
+    <div class="mt-2 flex items-center justify-end gap-2">
+      <button
+        type="button"
+        class="rounded-lg border border-slate-600/70 px-3 py-1.5 text-xs text-slate-200 transition hover:border-slate-400/70 hover:text-slate-100"
+        @click="dismissUpdateBanner"
+      >
+        {{ t('pwa.dismissAction') }}
+      </button>
+      <button
+        type="button"
+        class="rounded-lg border border-cyan-300/70 bg-cyan-500/20 px-3 py-1.5 text-xs text-cyan-50 transition hover:border-cyan-200 hover:bg-cyan-500/30 disabled:cursor-not-allowed disabled:opacity-60"
+        :disabled="isApplyingUpdate"
+        @click="applyPendingUpdate"
+      >
+        {{ isApplyingUpdate ? t('pwa.updating') : t('pwa.updateAction') }}
+      </button>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { useI18n } from '@/composables/useI18n';
 import AccountsPage from '@/pages/AccountsPage.vue';
 import HistoryPage from '@/pages/HistoryPage.vue';
 import TokenTrackerPage from '@/pages/TokenTrackerPage.vue';
+import { registerAppServiceWorker } from '@/services/pwa-registration';
+import type { AppServiceWorkerController } from '@/services/pwa-registration';
 
 type AppPage = 'tracker' | 'history' | 'accounts';
 
@@ -107,6 +136,10 @@ const initialRoute: RouteState = typeof window === 'undefined'
   : readRouteFromWindow();
 const currentPage = ref<AppPage>(initialRoute.page);
 const routeAccountId = ref<string | null>(initialRoute.accountId);
+const isUpdateBannerVisible = ref(false);
+const isApplyingUpdate = ref(false);
+const { t } = useI18n();
+let appServiceWorkerController: AppServiceWorkerController | null = null;
 
 function syncRouteFromWindow() {
   const route = readRouteFromWindow();
@@ -136,6 +169,36 @@ function onPopState() {
   syncRouteFromWindow();
 }
 
+function dismissUpdateBanner() {
+  isUpdateBannerVisible.value = false;
+}
+
+async function applyPendingUpdate() {
+  if (!appServiceWorkerController || isApplyingUpdate.value) {
+    return;
+  }
+
+  isApplyingUpdate.value = true;
+
+  try {
+    await appServiceWorkerController.applyUpdate();
+  } finally {
+    isApplyingUpdate.value = false;
+  }
+}
+
+async function initializePwaRegistration() {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  appServiceWorkerController = await registerAppServiceWorker({
+    onUpdateAvailable: () => {
+      isUpdateBannerVisible.value = true;
+    }
+  });
+}
+
 onMounted(() => {
   if (typeof window === 'undefined') {
     return;
@@ -149,6 +212,7 @@ onMounted(() => {
 
   window.addEventListener('popstate', onPopState);
   syncRouteFromWindow();
+  void initializePwaRegistration();
 });
 
 onBeforeUnmount(() => {
