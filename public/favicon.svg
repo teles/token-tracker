@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="80" y1="60" x2="950" y2="980" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#081329"/>
+      <stop offset="0.55" stop-color="#04122e"/>
+      <stop offset="1" stop-color="#020617"/>
+    </linearGradient>
+    <radialGradient id="bgGlowLeft" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(340 300) rotate(90) scale(320)">
+      <stop stop-color="#22C55E" stop-opacity="0.24"/>
+      <stop offset="1" stop-color="#22C55E" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="tileGreen" x1="240" y1="230" x2="520" y2="515" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#7CF7A4"/>
+      <stop offset="1" stop-color="#16A34A"/>
+    </linearGradient>
+    <linearGradient id="tileDark" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#253A66"/>
+      <stop offset="1" stop-color="#10264F"/>
+    </linearGradient>
+    <linearGradient id="tilePurple" x1="240" y1="560" x2="520" y2="850" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#9D70FF"/>
+      <stop offset="0.55" stop-color="#5B3EF5"/>
+      <stop offset="1" stop-color="#2F2BAA"/>
+    </linearGradient>
+    <linearGradient id="tileStriped" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#1D3768"/>
+      <stop offset="1" stop-color="#0E2448"/>
+    </linearGradient>
+    <linearGradient id="stripeColor" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#5A76B8" stop-opacity="0.52"/>
+      <stop offset="1" stop-color="#355896" stop-opacity="0.30"/>
+    </linearGradient>
+    <pattern id="diag" patternUnits="userSpaceOnUse" width="54" height="54" patternTransform="rotate(45)">
+      <rect width="54" height="54" fill="transparent"/>
+      <rect x="0" y="0" width="12" height="54" fill="url(#stripeColor)"/>
+    </pattern>
+    <filter id="glow" x="170" y="165" width="430" height="430" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="26" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <rect x="18" y="18" width="988" height="988" rx="180" fill="url(#bg)"/>
+  <rect x="18" y="18" width="988" height="988" rx="180" fill="url(#bgGlowLeft)"/>
+  <rect x="18" y="18" width="988" height="988" rx="180" stroke="#112756" stroke-opacity="0.65" stroke-width="4"/>
+
+  <g transform="translate(234 234)">
+    <rect x="0" y="0" width="260" height="260" rx="52" fill="url(#tileGreen)" stroke="#86EFAC" stroke-opacity="0.85" stroke-width="3"/>
+
+    <rect x="296" y="0" width="260" height="260" rx="52" fill="url(#tileDark)" stroke="#3E568D" stroke-opacity="0.55" stroke-width="2"/>
+
+    <rect x="0" y="296" width="260" height="260" rx="52" fill="url(#tilePurple)" stroke="#8D76FA" stroke-opacity="0.62" stroke-width="2"/>
+
+    <g>
+      <rect x="296" y="296" width="260" height="260" rx="52" fill="url(#tileStriped)" stroke="#345A97" stroke-opacity="0.56" stroke-width="2"/>
+      <rect x="296" y="296" width="260" height="260" rx="52" fill="url(#diag)" opacity="0.95"/>
+    </g>
+  </g>
+</svg>

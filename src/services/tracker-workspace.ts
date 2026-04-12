@@ -30,9 +30,9 @@ type LegacyPersistedV1 = {
   planning?: Record<string, unknown>;
 };
 
-const DEFAULT_ACCOUNT_ID = 'account-default';
 const LEGACY_STATE_V1_KEY = 'token-tracker:state:v1';
 const WORKSPACE_SCHEMA_VERSION = 1 as const;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export interface TrackerAccountSummary {
   id: string;
@@ -65,16 +65,43 @@ function nowIsoTimestamp(): string {
   return new Date().toISOString();
 }
 
-function toSafeIdentifierSegment(value: string): string {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 36) || 'account';
+function isUuid(value: string): boolean {
+  return UUID_PATTERN.test(value);
 }
 
-function buildAccountId(name: string): string {
-  return `account-${toSafeIdentifierSegment(name)}-${Date.now().toString(36)}`;
+function generateUuid(): string {
+  if (typeof globalThis !== 'undefined' && 'crypto' in globalThis && typeof globalThis.crypto.randomUUID === 'function') {
+    return globalThis.crypto.randomUUID();
+  }
+
+  const template = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx';
+  let seed = Date.now();
+
+  return template.replace(/[xy]/g, (token) => {
+    const random = (seed + Math.random() * 16) % 16 | 0;
+    seed = Math.floor(seed / 16);
+
+    if (token === 'x') {
+      return random.toString(16);
+    }
+
+    return ((random & 0x3) | 0x8).toString(16);
+  });
+}
+
+function buildUniqueAccountId(usedAccountIds: Set<string>): string {
+  let nextId = generateUuid();
+
+  while (usedAccountIds.has(nextId)) {
+    nextId = generateUuid();
+  }
+
+  usedAccountIds.add(nextId);
+  return nextId;
+}
+
+function buildAccountId(): string {
+  return generateUuid();
 }
 
 function resolveCycleWindow(referenceDate: ISODateString, cadence: TrackerCycleCadence): {
@@ -172,10 +199,11 @@ function buildDefaultAccount(referenceDate: ISODateString): {
   account: TrackerAccount;
   cycle: TrackerCycleRecord;
 } {
+  const accountId = buildAccountId();
   const cadence: TrackerCycleCadence = 'monthly';
   const { cycleStart, resetDate } = resolveCycleWindow(referenceDate, cadence);
   const cycle = buildCycleRecord({
-    accountId: DEFAULT_ACCOUNT_ID,
+    accountId,
     cadence,
     cycleStart,
     resetDate,
@@ -186,7 +214,7 @@ function buildDefaultAccount(referenceDate: ISODateString): {
 
   return {
     account: {
-      id: DEFAULT_ACCOUNT_ID,
+      id: accountId,
       name: 'Default Account',
       provider: 'custom',
       cadence,
@@ -238,7 +266,8 @@ function migrateLegacyState(referenceDate: ISODateString): TrackerWorkspace {
     return defaults;
   }
 
-  const cycleId = defaults.accounts[DEFAULT_ACCOUNT_ID].activeCycleId;
+  const defaultAccountId = defaults.activeAccountId;
+  const cycleId = defaults.accounts[defaultAccountId].activeCycleId;
   const activeCycle = defaults.cycles[cycleId];
   const cycleInfo = toCycleInfoFromRecord(activeCycle);
   const legacyV2 = toRecordFromLegacy(storage.getItem(TOKEN_TRACKER_STORAGE_KEY));
@@ -262,6 +291,69 @@ function migrateLegacyState(referenceDate: ISODateString): TrackerWorkspace {
   repository.saveWorkspace(defaults);
 
   return defaults;
+}
+
+function ensureWorkspaceAccountIdsAreUuids(workspace: TrackerWorkspace): TrackerWorkspace {
+  const accountIds = Object.keys(workspace.accounts);
+  const nonUuidAccountIds = accountIds.filter((accountId) => !isUuid(accountId));
+
+  if (nonUuidAccountIds.length === 0) {
+    return workspace;
+  }
+
+  const usedAccountIds = new Set(accountIds.filter((accountId) => isUuid(accountId)));
+  const accountIdByLegacyId = new Map<string, string>();
+
+  for (const legacyId of nonUuidAccountIds) {
+    accountIdByLegacyId.set(legacyId, buildUniqueAccountId(usedAccountIds));
+  }
+
+  const cycleIdByLegacyId = new Map<string, string>();
+  const migratedCycles: Record<string, TrackerCycleRecord> = {};
+
+  for (const [legacyCycleId, cycle] of Object.entries(workspace.cycles)) {
+    const nextAccountId = accountIdByLegacyId.get(cycle.accountId) ?? cycle.accountId;
+    const nextCycleId = nextAccountId === cycle.accountId
+      ? legacyCycleId
+      : `${nextAccountId}:${cycle.cycleStart}:${cycle.resetDate}`;
+
+    cycleIdByLegacyId.set(legacyCycleId, nextCycleId);
+    migratedCycles[nextCycleId] = {
+      ...cycle,
+      id: nextCycleId,
+      accountId: nextAccountId
+    };
+  }
+
+  const migratedAccounts: Record<string, TrackerAccount> = {};
+
+  for (const [legacyAccountId, account] of Object.entries(workspace.accounts)) {
+    const nextAccountId = accountIdByLegacyId.get(legacyAccountId) ?? legacyAccountId;
+    const nextCycleIds = account.cycleIds
+      .map((cycleId) => cycleIdByLegacyId.get(cycleId) ?? cycleId)
+      .filter((cycleId, index, allCycleIds) => allCycleIds.indexOf(cycleId) === index)
+      .sort();
+    const nextActiveCycleId = cycleIdByLegacyId.get(account.activeCycleId) ?? account.activeCycleId;
+
+    migratedAccounts[nextAccountId] = {
+      ...account,
+      id: nextAccountId,
+      activeCycleId: nextActiveCycleId,
+      cycleIds: nextCycleIds
+    };
+  }
+
+  const nextActiveAccountId = accountIdByLegacyId.get(workspace.activeAccountId) ?? workspace.activeAccountId;
+  const fallbackActiveAccountId = migratedAccounts[nextActiveAccountId]
+    ? nextActiveAccountId
+    : Object.keys(migratedAccounts)[0];
+
+  return {
+    schemaVersion: workspace.schemaVersion,
+    activeAccountId: fallbackActiveAccountId,
+    accounts: migratedAccounts,
+    cycles: migratedCycles
+  };
 }
 
 function isValidCadence(value: unknown): value is TrackerCycleCadence {
@@ -374,12 +466,12 @@ function sanitizeWorkspace(raw: TrackerWorkspace | null): TrackerWorkspace | nul
     return null;
   }
 
-  return {
+  return ensureWorkspaceAccountIdsAreUuids({
     schemaVersion: WORKSPACE_SCHEMA_VERSION,
     activeAccountId: raw.activeAccountId,
     accounts,
     cycles
-  };
+  });
 }
 
 function ensureAccountHasActiveCycle(workspace: TrackerWorkspace, account: TrackerAccount, referenceDate: ISODateString) {
@@ -643,7 +735,7 @@ export function createTrackerAccount(
   const createdAt = nowIsoTimestamp();
   const trimmedName = input.name.trim();
   const accountName = trimmedName.length > 0 ? trimmedName.slice(0, 60) : 'New Account';
-  const accountId = buildAccountId(accountName);
+  const accountId = buildAccountId();
   const cadence = input.cadence;
   const quotaPercent = Number.isFinite(input.quotaPercent)
     ? Math.max(1, Math.min(100, Number(input.quotaPercent)))

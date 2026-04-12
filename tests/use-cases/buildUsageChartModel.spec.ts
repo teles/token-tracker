@@ -27,7 +27,7 @@ describe('buildUsageChartModel', () => {
       '2026-04-05'
     ]);
 
-    expect(result.points.map((point) => point.cumulativePercent)).toEqual([10, 30, 30, 40, 50]);
+    expect(result.points.map((point) => point.cumulativePercent)).toEqual([10, 20, 30, 40, 50]);
     expect(result.points.map((point) => point.phase)).toEqual([
       'historical',
       'historical',
@@ -60,7 +60,7 @@ describe('buildUsageChartModel', () => {
       }
     });
 
-    expect(result.points.map((point) => point.cumulativePercent)).toEqual([0, 90, 100, 100]);
+    expect(result.points.map((point) => point.cumulativePercent)).toEqual([45, 90, 100, 100]);
     expect(result.points[2].phase).toBe('projected');
     expect(result.points[3].phase).toBe('projected');
   });

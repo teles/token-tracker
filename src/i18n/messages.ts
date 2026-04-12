@@ -264,7 +264,7 @@ export const i18nMessages: Record<AppLanguage, MessageMap> = {
     'header.closeMenu': 'Fechar menu',
     'header.navigation': 'Navegação',
     'navigation.history': 'Histórico',
-    'navigation.tracker': 'Diagnóstico',
+    'navigation.tracker': 'Tracker',
     'navigation.accounts': 'Contas',
 
     'settings.closeAria': 'Fechar configurações',

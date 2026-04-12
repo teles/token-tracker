@@ -23,13 +23,11 @@ function roundToSingleDecimal(value: number): number {
   return Math.round(value * 10) / 10;
 }
 
-export function calculateExpectedConsumedUntilPreviousDay(
+export function calculateExpectedConsumedUntilCurrentDay(
   cycle: CycleInfo,
   referenceDate: ISODateString
 ): number {
-  const previousDay = addDays(referenceDate, -1);
-
-  if (isBefore(previousDay, cycle.cycleStart)) {
+  if (isBefore(referenceDate, cycle.cycleStart)) {
     return 0;
   }
 
@@ -41,7 +39,7 @@ export function calculateExpectedConsumedUntilPreviousDay(
   }
 
   const elapsedExpectedUsageDays = expectedUsageDays.filter((date) =>
-    !isBefore(previousDay, date)
+    !isBefore(referenceDate, date)
   ).length;
 
   const ratio = elapsedExpectedUsageDays / expectedUsageDays.length;
@@ -49,7 +47,7 @@ export function calculateExpectedConsumedUntilPreviousDay(
 }
 
 export const initialUsageHistory: UsageHistoryMap = {
-  [today]: calculateExpectedConsumedUntilPreviousDay(initialCycle, today)
+  [today]: calculateExpectedConsumedUntilCurrentDay(initialCycle, today)
 };
 
 export const initialSnapshot: UsageSnapshot = {
@@ -78,7 +76,7 @@ export function buildDefaultCycleState(cycle: CycleInfo, referenceDate: ISODateS
   planning: PlanningMap;
 } {
   const usageHistory: UsageHistoryMap = {
-    [referenceDate]: calculateExpectedConsumedUntilPreviousDay(cycle, referenceDate)
+    [referenceDate]: calculateExpectedConsumedUntilCurrentDay(cycle, referenceDate)
   };
   const snapshot: UsageSnapshot = {
     measurementDate: referenceDate,

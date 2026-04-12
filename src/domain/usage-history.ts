@@ -4,7 +4,7 @@ import type {
   UsageHistoryMap,
   UsageMeasurement
 } from '@/types/token-tracker';
-import { addDays, diffDays, eachDayInclusive, isBetweenInclusive } from '@/utils/date';
+import { addDays, eachDayInclusive, isBetweenInclusive, isWeekend } from '@/utils/date';
 import { clamp } from '@/utils/format';
 
 function toClampedPercent(value: number, quotaPercent: number): number {
@@ -47,11 +47,52 @@ function ensureCycleStartAnchor(
   entries: UsageMeasurement[],
   cycle: CycleInfo
 ): UsageMeasurement[] {
-  if (entries.length === 0 || entries[0].date !== cycle.cycleStart) {
-    return [{ date: cycle.cycleStart, consumedPercent: 0 }, ...entries];
+  const baselineDate = addDays(cycle.cycleStart, -1);
+
+  if (entries.length === 0 || entries[0].date !== baselineDate) {
+    return [{ date: baselineDate, consumedPercent: 0 }, ...entries];
   }
 
   return entries;
+}
+
+function buildWeekendAwareInterpolation(
+  previous: UsageMeasurement,
+  next: UsageMeasurement,
+  cycle: CycleInfo
+): Record<ISODateString, number> {
+  const datesBetween = eachDayInclusive(addDays(previous.date, 1), addDays(next.date, -1));
+  const datesForDistribution = eachDayInclusive(addDays(previous.date, 1), next.date);
+
+  if (datesBetween.length === 0) {
+    return {};
+  }
+
+  const businessDays = datesForDistribution.filter((date) => !isWeekend(date));
+  const interpolatedByDate: Record<ISODateString, number> = {};
+  let latestValue = previous.consumedPercent;
+
+  if (businessDays.length === 0) {
+    for (const date of datesBetween) {
+      interpolatedByDate[date] = toClampedPercent(latestValue, cycle.quotaPercent);
+    }
+
+    return interpolatedByDate;
+  }
+
+  const step = (next.consumedPercent - previous.consumedPercent) / businessDays.length;
+  let businessOffset = 0;
+
+  for (const date of datesBetween) {
+    if (!isWeekend(date)) {
+      businessOffset += 1;
+      latestValue = previous.consumedPercent + step * businessOffset;
+    }
+
+    interpolatedByDate[date] = toClampedPercent(latestValue, cycle.quotaPercent);
+  }
+
+  return interpolatedByDate;
 }
 
 export function sanitizeUsageHistory(history: UsageHistoryMap, cycle: CycleInfo): UsageHistoryMap {
@@ -100,25 +141,8 @@ export function estimateConsumedPercentForDate(
     return 0;
   }
 
-  const span = diffDays(previous.date, next.date);
-  const missingDays = span - 1;
-
-  if (missingDays <= 0) {
-    return previous.consumedPercent;
-  }
-
-  const offsetFromPrevious = diffDays(previous.date, targetDate);
-
-  if (offsetFromPrevious <= 0) {
-    return previous.consumedPercent;
-  }
-
-  if (offsetFromPrevious >= missingDays) {
-    return next.consumedPercent;
-  }
-
-  const step = (next.consumedPercent - previous.consumedPercent) / missingDays;
-  return toClampedPercent(previous.consumedPercent + step * offsetFromPrevious, cycle.quotaPercent);
+  const interpolatedByDate = buildWeekendAwareInterpolation(previous, next, cycle);
+  return interpolatedByDate[targetDate] ?? previous.consumedPercent;
 }
 
 export function buildInterpolatedCumulativeHistory(
@@ -149,21 +173,10 @@ export function buildInterpolatedCumulativeHistory(
       continue;
     }
 
-    const span = diffDays(entry.date, nextEntry.date);
-    const missingDays = span - 1;
+    const interpolatedByDate = buildWeekendAwareInterpolation(entry, nextEntry, cycle);
 
-    if (missingDays <= 0) {
-      continue;
-    }
-
-    const step = (nextEntry.consumedPercent - entry.consumedPercent) / missingDays;
-
-    for (let offset = 1; offset <= missingDays; offset += 1) {
-      const date = addDays(entry.date, offset);
-      cumulativeByDate[date] = toClampedPercent(
-        entry.consumedPercent + step * offset,
-        cycle.quotaPercent
-      );
+    for (const [date, consumedPercent] of Object.entries(interpolatedByDate)) {
+      cumulativeByDate[date as ISODateString] = consumedPercent;
     }
   }
 

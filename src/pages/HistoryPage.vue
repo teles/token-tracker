@@ -348,7 +348,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 import PageHeader from '@/components/PageHeader.vue';
 import ProjectFooter from '@/components/ProjectFooter.vue';
 import SettingsModal from '@/components/SettingsModal.vue';
@@ -414,6 +414,10 @@ type SettingsFeedback = {
   message: string;
 };
 
+const props = defineProps<{
+  routeAccountId?: string | null;
+}>();
+
 const emit = defineEmits<{
   (event: 'navigate', page: 'tracker' | 'history' | 'accounts'): void;
 }>();
@@ -472,6 +476,46 @@ const settingsAccounts = computed(() =>
     cadenceLabel: toCadenceLabel(account.cadence),
     activeCycleLabel: `${account.activeCycleStart} -> ${account.activeCycleEnd}`
   }))
+);
+
+function syncHistoryUrlWithAccount(accountId: string) {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  const nextUrl = `/history?account=${encodeURIComponent(accountId)}`;
+  const currentUrl = `${window.location.pathname}${window.location.search}`;
+
+  if (currentUrl !== nextUrl) {
+    window.history.replaceState(window.history.state, '', nextUrl);
+  }
+}
+
+watch(
+  () => props.routeAccountId,
+  (routeAccountId) => {
+    if (!routeAccountId || routeAccountId === activeAccount.id) {
+      return;
+    }
+
+    const switched = switchActiveAccount(routeAccountId);
+
+    if (switched) {
+      clearMeasurementDraftState();
+      return;
+    }
+
+    syncHistoryUrlWithAccount(activeAccount.id);
+  },
+  { immediate: true }
+);
+
+watch(
+  () => activeAccount.id,
+  (accountId) => {
+    syncHistoryUrlWithAccount(accountId);
+  },
+  { immediate: true }
 );
 
 function toDisplayPercent(value: number): string {

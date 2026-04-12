@@ -8,6 +8,8 @@ import {
 } from '@/services/tracker-workspace';
 import { TOKEN_TRACKER_WORKSPACE_STORAGE_KEY } from '@/services/tracker-repository';
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 class MemoryStorage implements Storage {
   private map = new Map<string, string>();
 
@@ -150,8 +152,9 @@ describe('tracker workspace', () => {
 
   it('creates a new account and switches context', () => {
     const baseSlice = loadActiveTrackerSlice();
+    const defaultAccountId = baseSlice.activeAccount.id;
 
-    expect(baseSlice.activeAccount.id).toBe('account-default');
+    expect(defaultAccountId).toMatch(UUID_PATTERN);
 
     const createdSlice = createTrackerAccount({
       name: 'Codex Team B',
@@ -162,21 +165,77 @@ describe('tracker workspace', () => {
     const createdAccount = accountList.find((account) => account.id === createdSlice.activeAccount.id);
 
     expect(createdSlice.activeAccount.name).toBe('Codex Team B');
+    expect(createdSlice.activeAccount.id).toMatch(UUID_PATTERN);
     expect(createdSlice.activeAccount.cadence).toBe('weekly');
     expect(createdAccount?.isActive).toBe(true);
     expect(accountList.length).toBeGreaterThanOrEqual(2);
   });
 
   it('switches between existing accounts', () => {
+    const baseSlice = loadActiveTrackerSlice();
+    const defaultAccountId = baseSlice.activeAccount.id;
     const createdSlice = createTrackerAccount({
       name: 'Claude Ops',
       provider: 'claude',
       cadence: 'monthly'
     });
-    const switchedSlice = activateTrackerAccount('account-default');
+    const switchedSlice = activateTrackerAccount(defaultAccountId);
 
-    expect(createdSlice.activeAccount.id).not.toBe('account-default');
+    expect(createdSlice.activeAccount.id).not.toBe(defaultAccountId);
     expect(switchedSlice).not.toBeNull();
-    expect(switchedSlice?.activeAccount.id).toBe('account-default');
+    expect(switchedSlice?.activeAccount.id).toBe(defaultAccountId);
+  });
+
+  it('migrates legacy account ids into UUIDs in workspace storage', () => {
+    globalThis.localStorage.setItem(
+      TOKEN_TRACKER_WORKSPACE_STORAGE_KEY,
+      JSON.stringify({
+        schemaVersion: 1,
+        activeAccountId: 'account-default',
+        accounts: {
+          'account-default': {
+            id: 'account-default',
+            name: 'Default Legacy',
+            provider: 'custom',
+            cadence: 'monthly',
+            quotaPercent: 100,
+            activeCycleId: 'account-default:2026-04-01:2026-04-30',
+            cycleIds: ['account-default:2026-04-01:2026-04-30'],
+            createdAt: '2026-04-01T00:00:00.000Z',
+            updatedAt: '2026-04-09T00:00:00.000Z'
+          }
+        },
+        cycles: {
+          'account-default:2026-04-01:2026-04-30': {
+            id: 'account-default:2026-04-01:2026-04-30',
+            accountId: 'account-default',
+            cadence: 'monthly',
+            cycleStart: '2026-04-01',
+            resetDate: '2026-04-30',
+            status: 'active',
+            state: {
+              activeMeasurementDate: '2026-04-09',
+              usageHistory: {
+                '2026-04-09': 40
+              },
+              planning: {},
+              dayNotes: {}
+            },
+            createdAt: '2026-04-01T00:00:00.000Z',
+            updatedAt: '2026-04-09T00:00:00.000Z'
+          }
+        }
+      })
+    );
+
+    const slice = loadActiveTrackerSlice();
+    const storedWorkspace = JSON.parse(globalThis.localStorage.getItem(TOKEN_TRACKER_WORKSPACE_STORAGE_KEY) ?? '{}');
+    const migratedCycle = Object.values(storedWorkspace.cycles ?? {})[0] as { accountId: string; id: string } | undefined;
+
+    expect(slice.activeAccount.id).toMatch(UUID_PATTERN);
+    expect(storedWorkspace.activeAccountId).toBe(slice.activeAccount.id);
+    expect(Object.keys(storedWorkspace.accounts ?? {})).toEqual([slice.activeAccount.id]);
+    expect(migratedCycle?.accountId).toBe(slice.activeAccount.id);
+    expect(migratedCycle?.id.startsWith(`${slice.activeAccount.id}:`)).toBe(true);
   });
 });

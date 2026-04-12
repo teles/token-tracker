@@ -95,7 +95,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, ref } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 import CalendarHeatmap from '@/components/CalendarHeatmap.vue';
 import CalendarLegend from '@/components/CalendarLegend.vue';
 import DiagnosticsGrid from '@/components/DiagnosticsGrid.vue';
@@ -120,6 +120,10 @@ import type {
   TrackerCycleCadence
 } from '@/types/token-tracker';
 import type { ImportDataErrorCode } from '@/services/data-transfer';
+
+const props = defineProps<{
+  routeAccountId?: string | null;
+}>();
 
 const emit = defineEmits<{
   (event: 'navigate', page: 'tracker' | 'history' | 'accounts'): void;
@@ -174,6 +178,43 @@ const settingsAccounts = computed(() =>
     cadenceLabel: toCadenceLabel(account.cadence),
     activeCycleLabel: `${account.activeCycleStart} -> ${account.activeCycleEnd}`
   }))
+);
+
+function syncTrackerUrlWithAccount(accountId: string) {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  const nextUrl = `/?account=${encodeURIComponent(accountId)}`;
+  const currentUrl = `${window.location.pathname}${window.location.search}`;
+
+  if (currentUrl !== nextUrl) {
+    window.history.replaceState(window.history.state, '', nextUrl);
+  }
+}
+
+watch(
+  () => props.routeAccountId,
+  (routeAccountId) => {
+    if (!routeAccountId || routeAccountId === activeAccount.id) {
+      return;
+    }
+
+    const switched = switchActiveAccount(routeAccountId);
+
+    if (!switched) {
+      syncTrackerUrlWithAccount(activeAccount.id);
+    }
+  },
+  { immediate: true }
+);
+
+watch(
+  () => activeAccount.id,
+  (accountId) => {
+    syncTrackerUrlWithAccount(accountId);
+  },
+  { immediate: true }
 );
 
 async function handleSelectDay(date: ISODateString) {

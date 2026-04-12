@@ -12,6 +12,8 @@ import {
   todayIsoDate
 } from '@/utils/date';
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 class MemoryStorage implements Storage {
   private map = new Map<string, string>();
 
@@ -56,12 +58,12 @@ describe('useTokenTrackerState', () => {
     vi.useRealTimers();
   });
 
-  it('uses expected average consumed value until previous day on first load', () => {
+  it('uses expected average consumed value until the current day on first load', () => {
     const state = useTokenTrackerState();
-    const previousDay = addDays(state.snapshot.measurementDate, -1);
+    const referenceDay = state.snapshot.measurementDate;
     const cycleDays = eachDayInclusive(state.cycle.cycleStart, state.cycle.resetDate);
     const expectedUsageDays = cycleDays.filter((date) => !isWeekend(date));
-    const elapsedUsageDays = expectedUsageDays.filter((date) => !isBefore(previousDay, date));
+    const elapsedUsageDays = expectedUsageDays.filter((date) => !isBefore(referenceDay, date));
 
     const expectedPercent =
       expectedUsageDays.length === 0
@@ -271,8 +273,9 @@ describe('useTokenTrackerState', () => {
 
   it('creates and switches between accounts', () => {
     const state = useTokenTrackerState();
+    const defaultAccountId = state.activeAccount.id;
 
-    expect(state.activeAccount.id).toBe('account-default');
+    expect(defaultAccountId).toMatch(UUID_PATTERN);
 
     state.createAndSwitchAccount({
       name: 'Codex Weekly',
@@ -280,16 +283,17 @@ describe('useTokenTrackerState', () => {
       cadence: 'weekly'
     });
 
+    expect(state.activeAccount.id).toMatch(UUID_PATTERN);
     expect(state.activeAccount.name).toBe('Codex Weekly');
     expect(state.activeAccount.cadence).toBe('weekly');
     expect(state.cycle.cycleStart).toBe('2026-04-06');
     expect(state.cycle.resetDate).toBe('2026-04-12');
     expect(state.accountSummaries.length).toBeGreaterThanOrEqual(2);
 
-    const switched = state.switchActiveAccount('account-default');
+    const switched = state.switchActiveAccount(defaultAccountId);
 
     expect(switched).toBe(true);
-    expect(state.activeAccount.id).toBe('account-default');
+    expect(state.activeAccount.id).toBe(defaultAccountId);
     expect(state.cycle.cycleStart).toBe('2026-04-01');
     expect(state.cycle.resetDate).toBe('2026-04-30');
   });

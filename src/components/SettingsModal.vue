@@ -1,6 +1,6 @@
 <template>
   <Teleport to="body">
-    <div v-if="open" class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+    <div v-if="open" class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:items-center sm:p-6">
       <button
         type="button"
         class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"
@@ -12,7 +12,7 @@
         role="dialog"
         aria-modal="true"
         aria-labelledby="settings-title"
-        class="relative w-full max-w-md rounded-2xl border border-slate-700/70 bg-slate-900/95 shadow-panel"
+        class="relative flex max-h-[calc(100dvh-2rem)] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-700/70 bg-slate-900/95 shadow-panel sm:max-h-[calc(100dvh-3rem)]"
       >
         <header class="flex items-center justify-between border-b border-slate-700/70 px-5 py-4">
           <div>
@@ -28,7 +28,7 @@
           </button>
         </header>
 
-        <div class="space-y-4 px-5 py-4">
+        <div class="min-h-0 space-y-4 overflow-y-auto px-5 py-4">
           <fieldset class="space-y-2">
             <legend class="text-sm font-medium text-slate-100">{{ t('settings.language') }}</legend>
 
