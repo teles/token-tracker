@@ -18,6 +18,7 @@ interface BuildUsageChartModelInput {
   referenceDate: ISODateString;
   measurementDate: ISODateString;
   usageHistory: UsageHistoryMap;
+  estimatedHistory?: UsageHistoryMap;
   planning: PlanningMap;
 }
 
@@ -31,8 +32,10 @@ function isHistoricalDate(date: ISODateString, referenceDate: ISODateString): bo
 
 export function buildUsageChartModel(input: BuildUsageChartModelInput): UsageChartModel {
   const { cycle, referenceDate, measurementDate, usageHistory, planning } = input;
+  const estimatedHistory = input.estimatedHistory ?? {};
+  const effectiveHistory = { ...estimatedHistory, ...usageHistory };
   const consumedAtReference = normalizeConsumedPercent(
-    estimateConsumedPercentForDate(referenceDate, usageHistory, cycle),
+    estimateConsumedPercentForDate(referenceDate, effectiveHistory, cycle),
     cycle.quotaPercent
   );
   const elapsedDays = Math.max(1, diffDays(cycle.cycleStart, referenceDate) + 1);
@@ -41,7 +44,7 @@ export function buildUsageChartModel(input: BuildUsageChartModelInput): UsageCha
   const cumulativeHistorical = buildInterpolatedCumulativeHistory(
     referenceDate,
     consumedAtReference,
-    usageHistory,
+    effectiveHistory,
     cycle
   );
 

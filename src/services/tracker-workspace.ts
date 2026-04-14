@@ -180,6 +180,7 @@ function sanitizeCycleState(state: PersistedStateV2, cycle: CycleInfo): Persiste
     return {
       activeMeasurementDate: sanitized.activeMeasurementDate,
       usageHistory: { ...sanitized.usageHistory },
+      estimatedHistory: { ...(sanitized.estimatedHistory ?? {}) },
       planning: { ...sanitized.planning },
       dayNotes: { ...(sanitized.dayNotes ?? {}) }
     };
@@ -190,6 +191,7 @@ function sanitizeCycleState(state: PersistedStateV2, cycle: CycleInfo): Persiste
   return {
     activeMeasurementDate: defaults.snapshot.measurementDate,
     usageHistory: { ...defaults.usageHistory },
+    estimatedHistory: {},
     planning: { ...defaults.planning },
     dayNotes: {}
   };
@@ -222,6 +224,7 @@ function buildCycleRecord(input: {
     state: {
       activeMeasurementDate: defaults.snapshot.measurementDate,
       usageHistory: { ...defaults.usageHistory },
+      estimatedHistory: {},
       planning: { ...defaults.planning },
       dayNotes: {}
     },
@@ -320,6 +323,7 @@ function migrateLegacyState(referenceDate: ISODateString): TrackerWorkspace {
   activeCycle.state = {
     activeMeasurementDate: nextState.activeMeasurementDate,
     usageHistory: { ...nextState.usageHistory },
+    estimatedHistory: { ...(nextState.estimatedHistory ?? {}) },
     planning: { ...nextState.planning },
     dayNotes: { ...(nextState.dayNotes ?? {}) }
   };
@@ -497,6 +501,7 @@ function sanitizeWorkspace(raw: TrackerWorkspace | null): TrackerWorkspace | nul
       state: {
         activeMeasurementDate: nextState.activeMeasurementDate,
         usageHistory: { ...nextState.usageHistory },
+        estimatedHistory: { ...(nextState.estimatedHistory ?? {}) },
         planning: { ...nextState.planning },
         dayNotes: { ...(nextState.dayNotes ?? {}) }
       },

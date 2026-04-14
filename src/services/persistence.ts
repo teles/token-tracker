@@ -108,6 +108,7 @@ function migrateV1State(raw: unknown): PersistedStateV2 | null {
     usageHistory: {
       [candidate.snapshot.measurementDate]: candidate.snapshot.consumedPercent
     },
+    estimatedHistory: {},
     planning: candidate.planning ?? {},
     dayNotes: {}
   };
@@ -148,6 +149,7 @@ export function sanitizePersistedState(raw: unknown, cycle: CycleInfo): Persiste
   return {
     activeMeasurementDate,
     usageHistory: sanitizeUsageHistory(normalized.usageHistory ?? {}, cycle),
+    estimatedHistory: sanitizeUsageHistory((normalized as PersistedStateV2).estimatedHistory ?? {}, cycle),
     planning: sanitizePlanning(normalized.planning ?? {}, cycle),
     dayNotes: sanitizeDayNotes(normalized.dayNotes ?? {}, cycle)
   };
@@ -180,7 +182,8 @@ export function persistState(
   activeMeasurementDate: ISODateString,
   usageHistory: UsageHistoryMap,
   planning: PlanningMap,
-  dayNotes: DayNotesMap
+  dayNotes: DayNotesMap,
+  estimatedHistory: UsageHistoryMap = {}
 ): void {
   const storage = getStorage();
 
@@ -191,6 +194,7 @@ export function persistState(
   const payload: PersistedStateV2 = {
     activeMeasurementDate,
     usageHistory,
+    estimatedHistory,
     planning,
     dayNotes
   };

@@ -27,6 +27,9 @@ describe('data transfer service', () => {
     usageHistory: {
       '2026-04-09': 26.5
     },
+    estimatedHistory: {
+      '2026-04-08': 24.1
+    },
     planning: {
       '2026-04-10': 'on'
     },
@@ -52,6 +55,7 @@ describe('data transfer service', () => {
 
     expect(parsed.state.activeMeasurementDate).toBe(state.activeMeasurementDate);
     expect(parsed.state.usageHistory['2026-04-09']).toBe(26.5);
+    expect(parsed.state.estimatedHistory['2026-04-08']).toBe(24.1);
     expect(parsed.state.dayNotes?.['2026-04-09']).toBe('Teste');
     expect(parsed.importedLanguage).toBe('pt-BR');
   });

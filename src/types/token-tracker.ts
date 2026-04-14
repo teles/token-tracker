@@ -42,6 +42,7 @@ export interface TrackerAccount {
 export interface TrackerCycleState {
   activeMeasurementDate: ISODateString;
   usageHistory: UsageHistoryMap;
+  estimatedHistory: UsageHistoryMap;
   planning: PlanningMap;
   dayNotes: DayNotesMap;
 }

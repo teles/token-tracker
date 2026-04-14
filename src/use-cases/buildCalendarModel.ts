@@ -29,6 +29,7 @@ interface BuildCalendarModelInput {
   cycle: CycleInfo;
   planning: PlanningMap;
   usageHistory: UsageHistoryMap;
+  estimatedHistory?: UsageHistoryMap;
   dayNotes?: DayNotesMap;
   today?: ISODateString;
 }
@@ -47,6 +48,8 @@ function isWeeklyCycle(cycle: CycleInfo): boolean {
 
 export function buildCalendarModel(input: BuildCalendarModelInput): CalendarDayModel[] {
   const { snapshot, measurementDate, cycle, planning, usageHistory } = input;
+  const estimatedHistory = input.estimatedHistory ?? {};
+  const effectiveHistory = { ...estimatedHistory, ...usageHistory };
   const dayNotes = input.dayNotes ?? {};
   const today = input.today ?? todayIsoDate();
   const weeklyCycle = isWeeklyCycle(cycle);
@@ -57,7 +60,7 @@ export function buildCalendarModel(input: BuildCalendarModelInput): CalendarDayM
   const gridStart = weeklyCycle ? cycle.cycleStart : startOfWeekMonday(monthStart);
   const gridEnd = weeklyCycle ? cycle.resetDate : endOfWeekSunday(monthEnd);
 
-  const pastIntensities = generatePastHeatmapIntensities(snapshot, cycle, usageHistory);
+  const pastIntensities = generatePastHeatmapIntensities(snapshot, cycle, effectiveHistory);
 
   return eachDayInclusive(gridStart, gridEnd).map((date) => {
     const inCurrentMonth = weeklyCycle ? true : isCurrentMonth(date, monthStart, monthEnd);

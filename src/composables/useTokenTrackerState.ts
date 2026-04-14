@@ -1,6 +1,7 @@
 import { computed, reactive, watch } from 'vue';
 import { getNextPlanningState } from '@/domain/planning';
 import {
+  commitGapEstimates,
   estimateConsumedPercentForDate,
   findNeighborMeasurements
 } from '@/domain/usage-history';
@@ -147,6 +148,9 @@ export function useTokenTrackerState() {
   const usageHistory = reactive<UsageHistoryMap>(
     restored?.usageHistory ? { ...restored.usageHistory } : { ...defaultCycleState.usageHistory }
   );
+  const estimatedHistory = reactive<UsageHistoryMap>(
+    restored?.estimatedHistory ? { ...restored.estimatedHistory } : {}
+  );
   const planning = reactive<PlanningMap>(
     restored?.planning ? { ...restored.planning } : { ...defaultCycleState.planning }
   );
@@ -158,7 +162,7 @@ export function useTokenTrackerState() {
 
   const snapshot = reactive<UsageSnapshot>({
     measurementDate: initialMeasurementDate,
-    consumedPercent: estimateConsumedPercentForDate(initialMeasurementDate, usageHistory, cycle)
+    consumedPercent: estimateConsumedPercentForDate(initialMeasurementDate, { ...estimatedHistory, ...usageHistory }, cycle)
   });
 
   normalizePlanningEntries(referenceDate.value, planning, cycle);
@@ -187,7 +191,7 @@ export function useTokenTrackerState() {
 
   const analysisSnapshot = computed<UsageSnapshot>(() => ({
     measurementDate: referenceDate.value,
-    consumedPercent: estimateConsumedPercentForDate(referenceDate.value, usageHistory, cycle)
+    consumedPercent: estimateConsumedPercentForDate(referenceDate.value, { ...estimatedHistory, ...usageHistory }, cycle)
   }));
 
   const monthLabel = computed(() => toMonthLabel(referenceDate.value));
@@ -208,6 +212,7 @@ export function useTokenTrackerState() {
       cycle,
       planning,
       usageHistory,
+      estimatedHistory,
       dayNotes,
       today: referenceDate.value
     })
@@ -219,6 +224,7 @@ export function useTokenTrackerState() {
       referenceDate: referenceDate.value,
       measurementDate: snapshot.measurementDate,
       usageHistory,
+      estimatedHistory,
       planning
     })
   );
@@ -248,6 +254,7 @@ export function useTokenTrackerState() {
 
   function applyState(nextState: PersistedStateV2) {
     replaceMapEntries(usageHistory, nextState.usageHistory ?? {});
+    replaceMapEntries(estimatedHistory, nextState.estimatedHistory ?? {});
     replaceMapEntries(planning, nextState.planning ?? {});
     replaceMapEntries(dayNotes, nextState.dayNotes ?? {});
 
@@ -256,7 +263,7 @@ export function useTokenTrackerState() {
     snapshot.measurementDate = nextState.activeMeasurementDate;
     snapshot.consumedPercent = estimateConsumedPercentForDate(
       nextState.activeMeasurementDate,
-      usageHistory,
+      { ...estimatedHistory, ...usageHistory },
       cycle
     );
 
@@ -393,7 +400,7 @@ export function useTokenTrackerState() {
     }
 
     snapshot.measurementDate = parsed;
-    snapshot.consumedPercent = estimateConsumedPercentForDate(parsed, usageHistory, cycle);
+    snapshot.consumedPercent = estimateConsumedPercentForDate(parsed, { ...estimatedHistory, ...usageHistory }, cycle);
     formState.consumedPercent = toDisplayPercent(snapshot.consumedPercent);
     formState.dayNote = dayNotes[parsed] ?? '';
     validationErrors.consumedPercent = '';
@@ -408,6 +415,12 @@ export function useTokenTrackerState() {
 
     if (parsed === null) {
       return;
+    }
+
+    const newEstimates = commitGapEstimates(snapshot.measurementDate, parsed, usageHistory, estimatedHistory, cycle);
+
+    for (const [date, est] of Object.entries(newEstimates) as Array<[ISODateString, number]>) {
+      estimatedHistory[date] = est;
     }
 
     snapshot.consumedPercent = parsed;
@@ -481,6 +494,7 @@ export function useTokenTrackerState() {
     () => ({
       measurementDate: snapshot.measurementDate,
       usageHistory: { ...usageHistory },
+      estimatedHistory: { ...estimatedHistory },
       planning: { ...planning },
       dayNotes: { ...dayNotes }
     }),
@@ -490,6 +504,7 @@ export function useTokenTrackerState() {
         {
           activeMeasurementDate: snapshot.measurementDate,
           usageHistory: { ...usageHistory },
+          estimatedHistory: { ...estimatedHistory },
           planning: { ...planning },
           dayNotes: { ...dayNotes }
         },
@@ -505,6 +520,7 @@ export function useTokenTrackerState() {
       state: {
         activeMeasurementDate: snapshot.measurementDate,
         usageHistory: { ...usageHistory },
+        estimatedHistory: { ...estimatedHistory },
         planning: { ...planning },
         dayNotes: { ...dayNotes }
       },
@@ -530,6 +546,7 @@ export function useTokenTrackerState() {
     applyState({
       activeMeasurementDate: defaults.snapshot.measurementDate,
       usageHistory: { ...defaults.usageHistory },
+      estimatedHistory: {},
       planning: { ...defaults.planning },
       dayNotes: {}
     });

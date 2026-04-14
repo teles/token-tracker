@@ -64,6 +64,7 @@ function cloneState(state: PersistedStateV2): PersistedStateV2 {
   return {
     activeMeasurementDate: state.activeMeasurementDate,
     usageHistory: { ...state.usageHistory },
+    estimatedHistory: { ...(state.estimatedHistory ?? {}) },
     planning: { ...state.planning },
     dayNotes: { ...(state.dayNotes ?? {}) }
   };

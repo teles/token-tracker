@@ -232,3 +232,38 @@ export function findNeighborMeasurements(
 
   return { previous, next };
 }
+
+export function commitGapEstimates(
+  newDate: ISODateString,
+  newValue: number,
+  usageHistory: UsageHistoryMap,
+  estimatedHistory: UsageHistoryMap,
+  cycle: CycleInfo
+): UsageHistoryMap {
+  const interpolated = buildInterpolatedCumulativeHistory(newDate, newValue, usageHistory, cycle);
+  const newEstimates: UsageHistoryMap = {};
+
+  for (const [dateStr, value] of Object.entries(interpolated)) {
+    const date = dateStr as ISODateString;
+
+    if (!isBetweenInclusive(date, cycle.cycleStart, cycle.resetDate)) {
+      continue;
+    }
+
+    if (date >= newDate) {
+      continue;
+    }
+
+    if (Number.isFinite(usageHistory[date])) {
+      continue;
+    }
+
+    if (Number.isFinite(estimatedHistory[date])) {
+      continue;
+    }
+
+    newEstimates[date] = value;
+  }
+
+  return newEstimates;
+}

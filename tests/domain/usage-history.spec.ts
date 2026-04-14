@@ -1,6 +1,7 @@
 import {
   buildDailyUsageFromCumulativeHistory,
   buildInterpolatedCumulativeHistory,
+  commitGapEstimates,
   estimateConsumedPercentForDate
 } from '@/domain/usage-history';
 import type { CycleInfo, UsageHistoryMap } from '@/types/token-tracker';
@@ -85,5 +86,92 @@ describe('usage history interpolation', () => {
 
     expect(estimateConsumedPercentForDate('2026-04-01', history, cycle)).toBeCloseTo(7, 6);
     expect(estimateConsumedPercentForDate('2026-04-01', history, cycle)).toBeGreaterThan(0);
+  });
+});
+
+describe('commitGapEstimates', () => {
+  it('returns interpolated values for gap days before the new measurement', () => {
+    const usageHistory: UsageHistoryMap = {};
+    const estimatedHistory: UsageHistoryMap = {};
+
+    const result = commitGapEstimates('2026-04-14', 55, usageHistory, estimatedHistory, cycle);
+
+    expect(result['2026-04-14']).toBeUndefined();
+    expect(Object.keys(result).every((d) => d < '2026-04-14')).toBe(true);
+    expect(Object.keys(result).every((d) => d >= cycle.cycleStart)).toBe(true);
+    expect(Object.keys(result).length).toBeGreaterThan(0);
+    expect(result['2026-04-01']).toBeGreaterThan(0);
+    expect(result['2026-04-13']).toBeLessThan(55);
+  });
+
+  it('does not overwrite days already in estimatedHistory when updating the same measurement', () => {
+    const usageHistory: UsageHistoryMap = {
+      '2026-04-14': 55
+    };
+
+    const estimatedHistory: UsageHistoryMap = commitGapEstimates(
+      '2026-04-14',
+      55,
+      {},
+      {},
+      cycle
+    );
+
+    const originalDay1 = estimatedHistory['2026-04-01'];
+    const originalDay13 = estimatedHistory['2026-04-13'];
+
+    const resultOnUpdate = commitGapEstimates('2026-04-14', 60, usageHistory, estimatedHistory, cycle);
+
+    expect(Object.keys(resultOnUpdate).length).toBe(0);
+
+    const mergedAfterUpdate = { ...estimatedHistory, ...resultOnUpdate };
+    expect(mergedAfterUpdate['2026-04-01']).toBe(originalDay1);
+    expect(mergedAfterUpdate['2026-04-13']).toBe(originalDay13);
+  });
+
+  it('does not overwrite days already in usageHistory (actual measurements)', () => {
+    const usageHistory: UsageHistoryMap = {
+      '2026-04-07': 30
+    };
+    const estimatedHistory: UsageHistoryMap = {};
+
+    const result = commitGapEstimates('2026-04-14', 55, usageHistory, estimatedHistory, cycle);
+
+    expect(result['2026-04-07']).toBeUndefined();
+    expect(result['2026-04-08']).toBeDefined();
+    expect(result['2026-04-13']).toBeDefined();
+  });
+
+  it('estimates N days of absence only once — re-adding same date does not change earlier committed estimates', () => {
+    const usageHistory: UsageHistoryMap = {};
+    const estimatedHistory: UsageHistoryMap = {};
+
+    const firstEstimates = commitGapEstimates('2026-04-14', 55, usageHistory, estimatedHistory, cycle);
+    Object.assign(estimatedHistory, firstEstimates);
+    Object.assign(usageHistory, { '2026-04-14': 55 });
+
+    const day5ValueAfterFirst = estimatedHistory['2026-04-05'];
+
+    const secondEstimates = commitGapEstimates('2026-04-20', 80, usageHistory, estimatedHistory, cycle);
+    Object.assign(estimatedHistory, secondEstimates);
+    Object.assign(usageHistory, { '2026-04-20': 80 });
+
+    expect(estimatedHistory['2026-04-05']).toBe(day5ValueAfterFirst);
+    expect(secondEstimates['2026-04-15']).toBeDefined();
+    expect(secondEstimates['2026-04-19']).toBeDefined();
+    expect(secondEstimates['2026-04-05']).toBeUndefined();
+  });
+
+  it('returns empty object when all gap days are already in estimatedHistory', () => {
+    const usageHistory: UsageHistoryMap = {};
+    const estimatedHistory: UsageHistoryMap = {};
+
+    const first = commitGapEstimates('2026-04-14', 55, usageHistory, estimatedHistory, cycle);
+    Object.assign(estimatedHistory, first);
+    Object.assign(usageHistory, { '2026-04-14': 55 });
+
+    const second = commitGapEstimates('2026-04-14', 60, usageHistory, estimatedHistory, cycle);
+
+    expect(Object.keys(second).length).toBe(0);
   });
 });
